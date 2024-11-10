@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from database.models import Menu as Entity
 from database.schemas import Menu, MenuCreation, MenuUpdation
-from service.restaurant_menu_service import RestaurantMenuService, RedisCacheName
+from service.restaurant_menu_service import RestaurantMenuService, TargetCode
 
 menu_router = APIRouter(prefix='/api/v1/menus', tags=['Menu'])
 
@@ -20,12 +20,12 @@ async def create(creation_schema: MenuCreation, service: RestaurantMenuService =
 
 @menu_router.get('', name='Get all menu', status_code=200, response_model=list[Menu])
 async def read_all(service: RestaurantMenuService=Depends()):
-    return await service.read_all(get_entity_name(), RedisCacheName())
+    return await service.read_all(get_entity_name(), TargetCode())
 
 
 @menu_router.get('/{target_menu_id}', name='Get one menu', status_code=200, response_model=Menu)
 async def read_one(target_menu_id: str, service: RestaurantMenuService=Depends()):
-    cache_name = RedisCacheName(menu_id=target_menu_id)
+    cache_name = TargetCode(menu=target_menu_id)
     try:
         return await service.read_one(get_entity_name(), target_menu_id, cache_name)
     except ValueError as error:
@@ -34,7 +34,7 @@ async def read_one(target_menu_id: str, service: RestaurantMenuService=Depends()
 
 @menu_router.patch('/{target_menu_id}', name='Update menu', status_code=200, response_model=Menu)
 async def update(target_menu_id: str, updation_schema: MenuUpdation, service: RestaurantMenuService=Depends()):
-    cache_name = RedisCacheName(menu_id=target_menu_id)
+    cache_name = TargetCode(menu=target_menu_id)
     try:
         return await service.update(get_entity_name(), target_menu_id, updation_schema, cache_name)
     except Exception as error:
@@ -43,7 +43,7 @@ async def update(target_menu_id: str, updation_schema: MenuUpdation, service: Re
 
 @menu_router.delete('/{target_menu_id}', name='Delete menu', status_code=200)
 async def delete(target_menu_id: str, service: RestaurantMenuService=Depends()):
-    cache_name = RedisCacheName(menu_id=target_menu_id)
+    cache_name = TargetCode(menu=target_menu_id)
     try:
         return await service.delete(get_entity_name(), target_menu_id, cache_name)
     except Exception as error:

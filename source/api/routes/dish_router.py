@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from database.models import Dish as Entity
 from database.schemas import Dish, DishCreation, DishUpdation
-from service.restaurant_menu_service import RestaurantMenuService, RedisCacheName
+from service.restaurant_menu_service import RestaurantMenuService, TargetCode
 
 dish_router = APIRouter(prefix='/api/v1/menus/{target_menu_id}/submenus/{target_submenu_id}/dishes', tags=['Dish'])
 
@@ -18,7 +18,7 @@ async def create(
         creation_schema: DishCreation,
         service: RestaurantMenuService=Depends()
 ):
-    identification = RedisCacheName(menu_id=target_menu_id, submenu_id=target_submenu_id)
+    identification = TargetCode(menu=target_menu_id, submenu=target_submenu_id)
     try:
         return await service.create(get_entity_name(), creation_schema, identification)
     except Exception as error:
@@ -31,7 +31,7 @@ async def read_all(
         target_submenu_id: str,
         service: RestaurantMenuService=Depends()
 ):
-    identification = RedisCacheName(menu_id=target_menu_id, submenu_id=target_submenu_id)
+    identification = TargetCode(menu=target_menu_id, submenu=target_submenu_id)
     return await service.read_all(get_entity_name(), identification)
 
 
@@ -42,7 +42,7 @@ async def read_one(
         target_dish_id: str,
         service: RestaurantMenuService=Depends()
 ):
-    identification = RedisCacheName(menu_id=target_menu_id, submenu_id=target_submenu_id, dish_id=target_dish_id)
+    identification = TargetCode(menu=target_menu_id, submenu=target_submenu_id, dish=target_dish_id)
     try:
         return await service.read_one(get_entity_name(), target_dish_id, identification)
     except ValueError as error:
@@ -57,7 +57,7 @@ async def update(
         updation_schema: DishUpdation,
         service: RestaurantMenuService=Depends()
 ):
-    identification = RedisCacheName(menu_id=target_menu_id, submenu_id=target_submenu_id, dish_id=target_dish_id)
+    identification = TargetCode(menu=target_menu_id, submenu=target_submenu_id, dish=target_dish_id)
     try:
         return await service.update(get_entity_name(), target_dish_id, updation_schema, identification)
     except Exception as error:
@@ -71,7 +71,7 @@ async def delete(
         target_dish_id: str,
         service: RestaurantMenuService=Depends()
 ):
-    identification = RedisCacheName(menu_id=target_menu_id, submenu_id=target_submenu_id, dish_id=target_dish_id)
+    identification = TargetCode(menu=target_menu_id, submenu=target_submenu_id, dish=target_dish_id)
     try:
         return await service.delete(get_entity_name(), target_dish_id, identification)
     except Exception as error:

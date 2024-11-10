@@ -10,11 +10,11 @@ class RedisCache:
     redis_connection: aioredis.Redis  = aioredis.from_url(settings.redis_cache.url)
 
     @classmethod
-    async def upsert(cls, name: str, key: str, value: bytes) -> None:
+    async def hset(cls, name: str, key: str, value: bytes) -> None:
         await cls.redis_connection.hset(name, key=key, value=value)
 
     @classmethod
-    async def get(cls, name: str, key: str) -> bytes:
+    async def hget(cls, name: str, key: str) -> bytes:
         return await cls.redis_connection.hget(name, key)
 
     @classmethod
