@@ -1,8 +1,10 @@
 import pickle
 from dataclasses import dataclass, fields, InitVar
+from functools import cache
 
 from fastapi import Depends
 
+from api.routes.menu_router import menu_router
 from database.models import Menu, Submenu, Dish, Base
 from database.schemas import Schema
 from repository.restaurant_menu_repository import RestaurantMenuRepository
@@ -14,8 +16,8 @@ class EntityCode:
     value: Base | list[Base]
 
     @property
-    def cache_name(self) -> str:
-        return f'menu:{self.value.id}:submenu::dish:'
+    def cache_name_menu(self) -> dict[str, str]:
+        return {f'menu::submenu::dish:': 'menu'}
 
 
 @dataclass
@@ -25,18 +27,30 @@ class TargetCode:
     dish: str = ''
     entity_code: InitVar[EntityCode] | None = None
 
-    def construct_cache_name(self) -> str:
+    @property
+    def cache_name_entity_id(self) -> str:
         if self.entity_code:
             attribute = self.entity_code.value.__name__.lower()
             if hasattr(self, attribute):
                 setattr(self, attribute, str(self.entity_code.value.id))
         return f'menu:{self.menu}:submenu:{self.submenu}:dish:{self.dish}'
 
+    @property
+    def cache_name_menu(self) -> dict[str, str]:
+        return {f'menu::submenu::dish:': 'menu'}
+
+    @property
+    def cache_name_submenu(self) -> dict[str, str]:
+        return {f'menu:{self.menu}:submenu::dish:': 'submenu'}
+
+    @property
+    def cache_name_dish(self) -> dict[str, str]:
+        return {f'menu:{self.menu}:submenu:{self.submenu}:dish:' : 'dish'}
+
 
 class EntityNotRegistered(ValueError):
     def __init__(self, entity_name: str | None) -> None:
-        super().__init__(
-            f'Entity "{entity_name.capitalize()}" is not registered.')
+        super().__init__(f'Entity "{entity_name.capitalize()}" is not registered.')
 
 
 class RestaurantMenuService:
@@ -140,7 +154,7 @@ class RestaurantMenuService:
             cache_name: TargetCode | str,
     ) -> Base | list[Base] | None:
         if isinstance(cache_name, TargetCode):
-            cache_name = cache_name.construct_cache_name()
+            cache_name = cache_name.cache_name_entity_id()
         cache_value = await self.cache.hget(cache_name, key)
         return self._deserialize_pickle(cache_value)
 
@@ -151,20 +165,29 @@ class RestaurantMenuService:
 
     async def invalidate_cache(self, cache_payload: TargetCode | EntityCode) -> None:
         if isinstance(cache_payload, EntityCode):
-            await self.set_cache(str(cache_payload.value.id), cache_payload.value, cache_payload.cache_name)
-        entity_name_to_cache_name = self.construct_entity_name_to_cache_name(cache_payload)
-        print(entity_name_to_cache_name)
-        for entity_name in self.entity_name_to_entity_type:
+            cache_name, entity_name = tuple(*cache_payload.cache_name_menu.items())
+            await self.set_cache(str(cache_payload.value.id), cache_payload.value, cache_name)
             entity_type = self.entity_name_to_entity_type[entity_name]
             entities = await self.repository.get_entities(entity_type)
-            if (id_ := getattr(cache_payload, f'{entity_name}_id') != '') and isinstance(cache_payload, TargetCode):
-                print(id_)
-                entity = await self.repository.get_entity_by_id(entity_type, id_)
-                await self.set_cache(id_, entity, cache_payload)
-            print(entities)
-            cache_payload = entity_name_to_cache_name[entity_name]
-            print(cache_payload)
-            await self.set_cache(entity_name, entities, cache_payload)
+            await self.set_cache(entity_name, entities, cache_name)
+
+        if dish_id := cache_payload.dish:
+            return await self.invalidate_cache_entity(dish_id, cache_payload.cache_name_dish)
+
+        if submenu_id := cache_payload.submenu:
+            return await self.invalidate_cache_entity(submenu_id, cache_payload.cache_name_submenu)
+
+        if menu_id := cache_payload.menu:
+            return await self.invalidate_cache_entity(menu_id, cache_payload.cache_name_menu)
+
+    async def invalidate_cache_entity(self, entity_id: str, cache_name_entity: dict[str, str]):
+        cache_name, entity_name = tuple(*cache_name_entity.items())
+        entity_type = self.entity_name_to_entity_type[entity_name]
+        entity = await self.repository.get_entity_by_id(entity_type, entity_id)
+        entities = await self.repository.get_entities(entity_type)
+        await self.set_cache(entity_id, entity, cache_name)
+        await self.set_cache(entity_name, entities, cache_name)
+
 
     @staticmethod
     def _serialize_pickle(entity: Base) -> bytes:
@@ -178,25 +201,13 @@ class RestaurantMenuService:
             return None
 
     @staticmethod
-    def construct_keys_for_delete_cache(cache_name: TargetCode) -> set[str]:
-        print(cache_name)
-        pattern = f'menu_id:{cache_name.menu}:submenu_id:'
-        menu_key = f'{pattern}:dish_id:'
-        submenu_key = f'{pattern}{cache_name.submenu}:dish_id:'
-        dish_key = f'{submenu_key}{cache_name.dish}'
-        menus = TargetCode().construct_cache_name()
-        return {menu_key, submenu_key, dish_key, menus}
-    
-    @staticmethod
-    def construct_entity_name_to_cache_name(cache_name: TargetCode) -> dict[str, str]:
-        menu_key = TargetCode().construct_cache_name()
-        submenu_key = f'menu_id:{cache_name.menu}:submenu_id:'
-        dish_key = f'{submenu_key}{cache_name.submenu}:dish_id:'
-        return {
-            Menu.__name__.lower(): menu_key,
-            Submenu.__name__.lower(): submenu_key,
-            Dish.__name__.lower(): dish_key
-        }
+    def construct_keys_for_delete_cache(cache_name: TargetCode) -> tuple[str, ...]:
+        if cache_name.dish:
+            return (cache_name.cache_name_dish, )
+        if cache_name.submenu:
+            return cache_name.cache_name_submenu, cache_name.cache_name_dish
+        if cache_name.menu:
+            return cache_name.cache_name_menu, cache_name.cache_name_submenu, cache_name.cache_name_dish
 
     @staticmethod
     def _get_relation_column_name_to_value(target_code: TargetCode, entity_type: type[Base]):
