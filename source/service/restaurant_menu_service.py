@@ -13,7 +13,7 @@ from utils.redis_cache import RedisCache
 
 @dataclass
 class EntityCode:
-    value: Base | list[Base]
+    value: Base
 
     @property
     def cache_name_menu(self) -> dict[str, str]:
@@ -25,7 +25,7 @@ class TargetCode:
     menu: str = ''
     submenu: str = ''
     dish: str = ''
-    entity_code: InitVar[EntityCode] | None = None
+    entity_code: EntityCode | None = None
 
     @property
     def cache_name_entity_id(self) -> str:
@@ -98,15 +98,15 @@ class RestaurantMenuService:
             self,
             entity_name: str,
             entity_id: str,
-            cache_name: TargetCode | str,
+            target_code: TargetCode | str,
     ) -> Base | None:
-        if cache := await self.get_cache(entity_id, cache_name):
+        if cache := await self.get_cache(entity_id, target_code):
             return cache
 
         entity_type = self._get_entity_type(entity_name)
         if not (entity := await self.repository.get_entity_by_id(entity_type, entity_id)):
             raise ValueError(f'{entity_name} not found')
-        await self.invalidate_cache(entity, entity_id, cache_name)
+        await self.invalidate_cache(EntityCode(entity))
         return entity
 
     async def update(
@@ -164,28 +164,32 @@ class RestaurantMenuService:
         await self.cache.delete(cache_names)
 
     async def invalidate_cache(self, cache_payload: TargetCode | EntityCode) -> None:
-        if isinstance(cache_payload, EntityCode):
-            cache_name, entity_name = tuple(*cache_payload.cache_name_menu.items())
-            await self.set_cache(str(cache_payload.value.id), cache_payload.value, cache_name)
-            entity_type = self.entity_name_to_entity_type[entity_name]
-            entities = await self.repository.get_entities(entity_type)
-            await self.set_cache(entity_name, entities, cache_name)
-
         if dish_id := cache_payload.dish:
-            return await self.invalidate_cache_entity(dish_id, cache_payload.cache_name_dish)
+            return await self.invalidate_cache_entity(cache_payload.cache_name_dish, entity_id=dish_id)
 
-        if submenu_id := cache_payload.submenu:
-            return await self.invalidate_cache_entity(submenu_id, cache_payload.cache_name_submenu)
+        if submenu_id := cache_payload.submenu and not cache_payload.dish:
+            if entity_code := cache_payload.entity_code:
+                await self.invalidate_cache_entity(cache_payload.cache_name_submenu, entity=entity_code.value)
+                await self.invalidate_cache_entity(cache_payload.cache_name_menu, entity_id=cache_payload.menu)
+            return await self.invalidate_cache_entity(cache_payload.cache_name_submenu, entity_id=submenu_id)
 
-        if menu_id := cache_payload.menu:
-            return await self.invalidate_cache_entity(menu_id, cache_payload.cache_name_menu)
+        if menu_id := cache_payload.menu and not cache_payload.submenu:
+            if entity_code := cache_payload.entity_code:
+                await self.invalidate_cache_entity(cache_payload.cache_name_menu, entity=entity_code.value)
+            return await self.invalidate_cache_entity(cache_payload.cache_name_menu, entity_id=menu_id)
 
-    async def invalidate_cache_entity(self, entity_id: str, cache_name_entity: dict[str, str]):
+        if isinstance(cache_payload, EntityCode):
+            return await self.invalidate_cache_entity(cache_payload.cache_name_menu, entity=cache_payload.value)
+
+    async def invalidate_cache_entity(self, cache_name_entity: dict[str, str], entity_id: str = None, entity: Base = None):
         cache_name, entity_name = tuple(*cache_name_entity.items())
         entity_type = self.entity_name_to_entity_type[entity_name]
-        entity = await self.repository.get_entity_by_id(entity_type, entity_id)
+        if entity_id:
+            entity = await self.repository.get_entity_by_id(entity_type, entity_id)
+            await self.set_cache(entity_id, entity, cache_name)
+        if entity:
+            await self.set_cache(str(entity.id), entity, cache_name)
         entities = await self.repository.get_entities(entity_type)
-        await self.set_cache(entity_id, entity, cache_name)
         await self.set_cache(entity_name, entities, cache_name)
 
 
