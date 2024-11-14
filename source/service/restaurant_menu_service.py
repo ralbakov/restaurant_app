@@ -1,10 +1,8 @@
 import pickle
-from dataclasses import dataclass, fields, InitVar
-from functools import cache
+from dataclasses import dataclass, fields
 
 from fastapi import Depends
 
-from api.routes.menu_router import menu_router
 from database.models import Menu, Submenu, Dish, Base
 from database.schemas import Schema
 from repository.restaurant_menu_repository import RestaurantMenuRepository
@@ -16,11 +14,10 @@ class EntityCode:
     value: Base
 
     @property
-    def cache_name_menu(self) -> dict[str, str]:
-        return {f'menu::submenu::dish:': 'menu'}
+    def entity_name_to_cache_name(self) -> dict[str, str]:
+        return {'menu': f'menu::submenu::dish:'}
 
 
-@dataclass
 class TargetCode:
     menu: str = ''
     submenu: str = ''
@@ -36,17 +33,12 @@ class TargetCode:
         return f'menu:{self.menu}:submenu:{self.submenu}:dish:{self.dish}'
 
     @property
-    def cache_name_menu(self) -> dict[str, str]:
-        return {f'menu::submenu::dish:': 'menu'}
-
-    @property
-    def cache_name_submenu(self) -> dict[str, str]:
-        return {f'menu:{self.menu}:submenu::dish:': 'submenu'}
-
-    @property
-    def cache_name_dish(self) -> dict[str, str]:
-        return {f'menu:{self.menu}:submenu:{self.submenu}:dish:' : 'dish'}
-
+    def entity_name_to_cache_name(self) -> dict[str, str]:
+        return {
+            'menu': f'menu::submenu::dish:',
+            'submenu': f'menu:{self.menu}:submenu::dish:',
+            'dish': f'menu:{self.menu}:submenu:{self.submenu}:dish:',
+        }
 
 class EntityNotRegistered(ValueError):
     def __init__(self, entity_name: str | None) -> None:
@@ -91,7 +83,7 @@ class RestaurantMenuService:
         else:
             cache_payload = entity_code
 
-        await self.invalidate_cache(cache_payload)
+        await self.invalidate_cache(entity_name, cache_payload)
         return entity
 
     async def read_one(
@@ -100,13 +92,14 @@ class RestaurantMenuService:
             entity_id: str,
             target_code: TargetCode | str,
     ) -> Base | None:
-        if cache := await self.get_cache(entity_id, target_code):
+        cache_name = target_code.entity_name_to_cache_name[entity_name]
+        if cache := await self.get_cache(entity_id, cache_name):
             return cache
 
         entity_type = self._get_entity_type(entity_name)
         if not (entity := await self.repository.get_entity_by_id(entity_type, entity_id)):
             raise ValueError(f'{entity_name} not found')
-        await self.invalidate_cache(EntityCode(entity))
+        await self.set_cache(str(entity.id), entity, cache_name)
         return entity
 
     async def update(
@@ -114,23 +107,24 @@ class RestaurantMenuService:
             entity_name: str,
             entity_id: str,
             updation_schema: Schema,
-            cache_name: TargetCode | str,
+            target_code: TargetCode | str,
     ) -> Base | None:
         entity_type = self._get_entity_type(entity_name)
         column_to_value = {
             column: value for column, value in updation_schema.model_dump().items() if hasattr(entity_type, column)
         }
         entity = await self.repository.update_entity(entity_type, entity_id, **column_to_value)
-        await self.invalidate_cache(entity, entity_id, cache_name)
+        cache_name = target_code.entity_name_to_cache_name[entity_name]
+        await self.set_cache(entity_id, entity, cache_name)
         return entity
 
     async def delete(self, entity_name: str, entity_id: str, cache_name: TargetCode | str) -> None:
-
         entity_type = self._get_entity_type(entity_name)
         await self.repository.delete_entity(entity_type, entity_id)
         await self.delete_cache(cache_name)
 
-    async def read_all(self, entity_name: str, cache_name: TargetCode | str) -> list[Base] | None:
+    async def read_all(self, entity_name: str, target_code: TargetCode | str) -> list[Base] | None:
+        cache_name = target_code.entity_name_to_cache_name[entity_name]
         if cache := await self.get_cache(entity_name, cache_name):
             return cache
 
@@ -160,29 +154,23 @@ class RestaurantMenuService:
 
     async def delete_cache(self, cache_name: TargetCode | str) -> None:
         cache_names = self.construct_keys_for_delete_cache(cache_name)
-        print(cache_names)
         await self.cache.delete(cache_names)
 
-    async def invalidate_cache(self, cache_payload: TargetCode | EntityCode) -> None:
-        if dish_id := cache_payload.dish:
-            return await self.invalidate_cache_entity(cache_payload.cache_name_dish, entity_id=dish_id)
-
-        if submenu_id := cache_payload.submenu and not cache_payload.dish:
-            if entity_code := cache_payload.entity_code:
-                await self.invalidate_cache_entity(cache_payload.cache_name_submenu, entity=entity_code.value)
-                await self.invalidate_cache_entity(cache_payload.cache_name_menu, entity_id=cache_payload.menu)
-            return await self.invalidate_cache_entity(cache_payload.cache_name_submenu, entity_id=submenu_id)
-
-        if menu_id := cache_payload.menu and not cache_payload.submenu:
-            if entity_code := cache_payload.entity_code:
-                await self.invalidate_cache_entity(cache_payload.cache_name_menu, entity=entity_code.value)
-            return await self.invalidate_cache_entity(cache_payload.cache_name_menu, entity_id=menu_id)
-
+    async def invalidate_cache(self, entity_name: str, cache_payload: TargetCode | EntityCode) -> None:
+        cache_name = cache_payload.entity_name_to_cache_name[entity_name]
         if isinstance(cache_payload, EntityCode):
-            return await self.invalidate_cache_entity(cache_payload.cache_name_menu, entity=cache_payload.value)
+            return await self.invalidate_cache_entity(entity_name, cache_name, entity=cache_payload.value)
+        await self.invalidate_cache_entity(entity_name, cache_name, entity=cache_payload.entity_code.value)
+        if cache_payload.submenu and not cache_payload.dish:
+            submenu_name = Submenu.__name__.lower()
+            submenu_cache_name = cache_payload.entity_name_to_cache_name[submenu_name]
+            await self.invalidate_cache_entity(submenu_name, submenu_cache_name, entity_id=cache_payload.submenu)
+        menu_name = Menu.__name__.lower()
+        menu_cache_name = cache_payload.entity_name_to_cache_name[menu_name]
+        return await self.invalidate_cache_entity(menu_name, menu_cache_name, entity_id=cache_payload.menu)
 
-    async def invalidate_cache_entity(self, cache_name_entity: dict[str, str], entity_id: str = None, entity: Base = None):
-        cache_name, entity_name = tuple(*cache_name_entity.items())
+
+    async def invalidate_cache_entity(self, entity_name: str, cache_name: str, entity_id: str = None, entity: Base = None):
         entity_type = self.entity_name_to_entity_type[entity_name]
         if entity_id:
             entity = await self.repository.get_entity_by_id(entity_type, entity_id)
