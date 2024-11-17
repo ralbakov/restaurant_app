@@ -17,6 +17,7 @@ class SessionManager:
     def __init__(self) -> None:
         self._engine: AsyncEngine | None = None
         self._sessionmaker: async_sessionmaker[AsyncSession] | None = None
+        self.init()
     
     def init(self) -> None:
         self._engine = create_async_engine(url=settings.db.url, pool_pre_ping=True)
@@ -31,7 +32,7 @@ class SessionManager:
 
     @asynccontextmanager
     async def session(self) -> AsyncIterator[AsyncSession]:
-        if self._sessionmaker is None:
+        if not self._sessionmaker:
             raise IOError("SessionManager is not initialized")
         session = self._sessionmaker()
         try:
@@ -52,16 +53,12 @@ class SessionManager:
             except Exception:
                 await connection.rollback()
                 raise
-
-
-db_manager = SessionManager()
-
-
-async def get_session() -> AsyncIterator[AsyncSession]:
-    async with db_manager.session() as session:
-        yield session
+            finally:
+                await connection.close()
 
 
 async def init_models() -> None:
-    async with db_manager.connect() as connection:
-        await connection.run_sync(Base.metadata.create_all)
+    engine = create_async_engine(url=settings.db.url)
+    async with engine.connect() as connection:
+        async with connection.begin():
+            await connection.run_sync(Base.metadata.create_all)

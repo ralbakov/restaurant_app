@@ -6,16 +6,13 @@ from fastapi import FastAPI
 from api.routes.dish_router import dish_router
 from api.routes.menu_router import menu_router
 from api.routes.submenu_router import submenu_router
-from database.session_manager import db_manager, init_models
+from database.session_manager import init_models
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    db_manager.init()
     await init_models()
     yield
-    await db_manager.close()
-
 
 app = FastAPI(lifespan=lifespan,
               title='Restaurant API',

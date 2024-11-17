@@ -3,9 +3,6 @@ from redis import asyncio as aioredis
 from core.config import settings
 
 
-# StrictVersion = importlib.reload(sys.modules['dist']).dist
-
-
 class RedisCache:
     redis_connection: aioredis.Redis  = aioredis.from_url(settings.redis_cache.url)
 
@@ -18,9 +15,9 @@ class RedisCache:
         return await cls.redis_connection.hget(name, key)
 
     @classmethod
-    async def delete(cls, names: set[str]) -> None:
+    async def delete(cls, *names: str) -> None:
         await cls.redis_connection.delete(*names)
 
     @classmethod
-    async def get_keys(cls, name: str, match: str) -> list[str]:
-        return await cls.redis_connection.hscan(name, match=match)
+    async def hdel(cls, name: str, *keys: str) -> None:
+        await cls.redis_connection.hdel(name,*keys)
