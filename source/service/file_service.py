@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import io
 from contextlib import asynccontextmanager
@@ -25,10 +26,18 @@ class FileService:
         sha256_hash = hashlib.sha256()
         if isinstance(file_path, httpx.URL):
             async with self.get_file(file_path) as response:
-                sha256_hash.update(response.read())
+                data = response.read()
         else:
             with open(file_path, 'rb') as file:
-                while data := file.read(io.DEFAULT_BUFFER_SIZE):
-                    sha256_hash.update(data)
+                data = file.read()
+        sha256_hash.update(data)
         self.sha256_hash = sha256_hash.hexdigest()
+        self.file = data
         return self.sha256_hash
+
+file_ser = FileService()
+async def main():
+    sha256_hash = await file_ser.construct_sha256_hash(httpx.URL("https://docs.google.com/spreadsheets/d/1MwsuSEoy0BkhXLpuM04xmTGTxvuEEyOBtXA0DfXID1s/edit?usp=share_link"))
+    print(sha256_hash)
+
+asyncio.run(main())
