@@ -64,16 +64,12 @@ class ParserXlsxService:
         self.wb: Workbook | None = None
         self.__path: str | None = None
         self.__hash: str | None = None
+        self.__hash_values = set()
 
-    def load_workbook(self, path: str) -> None:
+    def load_sheet(self, path: str) -> None:
         self.__path = path
         self.wb = load_workbook(filename=path)
-
-    @property
-    def active(self) -> None:
-        if self.wb and not self.sheet:
-            self.sheet = self.wb.active
-        return
+        self.sheet = self.wb.active
 
     def construct_entity(self,
                          entity_type: type[BaseMenu],
@@ -81,8 +77,10 @@ class ParserXlsxService:
                          column_type: type[IntEnum],
                          entity_id: uuid.UUID = None) -> BaseMenu | None:
         values = [self.sheet.cell(row=row, column=column).value for column in column_type]
-        if not all(values):
+        hash_values = sum(hash(value) for value in values[1:])
+        if not all(values) or hash_values in self.__hash_values:
             return
+        self.__hash_values.add(hash_values)
         values[0] = uuid.uuid4()
         if entity_id:
             values.append(entity_id)
