@@ -1,10 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 
+from core.config import settings
 from database.models import Submenu as Entity
 from database.schemas import Submenu, SubmenuCreation, SubmenuUpdation
 from service.restaurant_menu_service import RestaurantMenuService, TargetCode
 
-submenu_router = APIRouter(prefix='/api/v1/menus/{target_menu_id}/submenus', tags=['Submenu'])
+
+path = settings.path
+
+submenu_router = APIRouter(prefix=path.target_submenus, tags=['Submenu'])
 
 
 @submenu_router.post('', name='Create submenu', status_code=201, response_model=Submenu)
@@ -24,7 +28,7 @@ async def read_all(target_menu_id: str, task: BackgroundTasks, service: Restaura
     return await service.read_all(target_code, task)
 
 
-@submenu_router.get('/{target_submenu_id}', name='Get one submenu', status_code=200, response_model=Submenu)
+@submenu_router.get(path.target_submenu_id, name='Get one submenu', status_code=200, response_model=Submenu)
 async def read_one(target_menu_id: str,
                    target_submenu_id: str,
                    task: BackgroundTasks,
@@ -38,7 +42,7 @@ async def read_one(target_menu_id: str,
         raise HTTPException(status_code=404, detail=error.args[0])
 
 
-@submenu_router.patch('/{target_submenu_id}', name='Update submenu', status_code=200, response_model=Submenu)
+@submenu_router.patch(path.target_submenu_id, name='Update submenu', status_code=200, response_model=Submenu)
 async def update(target_menu_id: str,
                  target_submenu_id: str,
                  updation_schema: SubmenuUpdation,
@@ -53,7 +57,7 @@ async def update(target_menu_id: str,
         raise error
 
 
-@submenu_router.delete('/{target_submenu_id}', name='Delete submenu', status_code=200, response_model=None)
+@submenu_router.delete(path.target_submenu_id, name='Delete submenu', status_code=200, response_model=None)
 async def delete(target_menu_id: str,
                  target_submenu_id: str,
                  task: BackgroundTasks,

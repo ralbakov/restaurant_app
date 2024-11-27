@@ -3,8 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from database.models import Menu as Entity
 from database.schemas import Menu, MenuCreation, MenuUpdation
 from service.restaurant_menu_service import RestaurantMenuService, TargetCode
+from core.config import settings
 
-menu_router = APIRouter(prefix='/api/v1/menus', tags=['Menu'])
+
+path = settings.path
+
+menu_router = APIRouter(prefix=path.target_menus, tags=['Menu'])
 
 
 @menu_router.post('', name='Create menu', status_code=201, response_model=Menu)
@@ -21,7 +25,7 @@ async def read_all(task: BackgroundTasks, service: RestaurantMenuService=Depends
     return await service.read_all(target_code, task)
 
 
-@menu_router.get('/{target_menu_id}', name='Get one menu', status_code=200, response_model=Menu)
+@menu_router.get(path.target_menu_id, name='Get one menu', status_code=200, response_model=Menu)
 async def read_one(target_menu_id: str, task: BackgroundTasks, service: RestaurantMenuService=Depends()):
     target_code = TargetCode.construct_entity_name(Entity)
     target_code.menu = target_menu_id
@@ -31,7 +35,7 @@ async def read_one(target_menu_id: str, task: BackgroundTasks, service: Restaura
         raise HTTPException(status_code=404, detail=error.args[0])
 
 
-@menu_router.patch('/{target_menu_id}', name='Update menu', status_code=200, response_model=Menu)
+@menu_router.patch(path.target_menu_id, name='Update menu', status_code=200, response_model=Menu)
 async def update(target_menu_id: str,
                  updation_schema: MenuUpdation,
                  task: BackgroundTasks,
@@ -44,7 +48,7 @@ async def update(target_menu_id: str,
         raise HTTPException(status_code=400, detail=error.args[0])
 
 
-@menu_router.delete('/{target_menu_id}', name='Delete menu', status_code=200)
+@menu_router.delete(path.target_menu_id, name='Delete menu', status_code=200)
 async def delete(target_menu_id: str, task: BackgroundTasks, service: RestaurantMenuService=Depends()):
     target_code = TargetCode.construct_entity_name(Entity)
     target_code.menu = target_menu_id

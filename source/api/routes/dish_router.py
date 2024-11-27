@@ -1,10 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 
+from core.config import settings
 from database.models import Dish as Entity
 from database.schemas import Dish, DishCreation, DishUpdation
 from service.restaurant_menu_service import RestaurantMenuService, TargetCode
 
-dish_router = APIRouter(prefix='/api/v1/menus/{target_menu_id}/submenus/{target_submenu_id}/dishes', tags=['Dish'])
+
+path = settings.path
+
+dish_router = APIRouter(prefix=path.target_dishes, tags=['Dish'])
 
 
 @dish_router.post('', name='Create dish', status_code=201, response_model=Dish)
@@ -33,7 +37,7 @@ async def read_all(target_menu_id: str,
     return await service.read_all(target_code, task)
 
 
-@dish_router.get('/{target_dish_id}', name='Get one dish', status_code=200, response_model=Dish)
+@dish_router.get(path.target_dish_id, name='Get one dish', status_code=200, response_model=Dish)
 async def read_one(target_menu_id: str,
                    target_submenu_id: str,
                    target_dish_id: str,
@@ -49,7 +53,7 @@ async def read_one(target_menu_id: str,
         raise HTTPException(status_code=404, detail=error.args[0])
 
 
-@dish_router.patch('/{target_dish_id}', name='Update dish', status_code=200, response_model=Dish)
+@dish_router.patch(path.target_dish_id, name='Update dish', status_code=200, response_model=Dish)
 async def update(target_menu_id: str,
                  target_submenu_id: str,
                  target_dish_id: str,
@@ -66,7 +70,7 @@ async def update(target_menu_id: str,
         raise error
 
 
-@dish_router.delete('/{target_dish_id}', name='Delete dish', status_code=200, response_model=None)
+@dish_router.delete(path.target_dish_id, name='Delete dish', status_code=200, response_model=None)
 async def delete(target_menu_id: str,
                  target_submenu_id: str,
                  target_dish_id: str,
