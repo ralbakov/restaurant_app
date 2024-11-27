@@ -7,7 +7,7 @@ from database.models import Base
 from database.session_manager import SessionManager
 
 
-class RestaurantMenuRepository:
+class RestaurantRepository:
 
     def __init__(self, db_connection: SessionManager = Depends(SessionManager)) -> None:
         self.db_connection = db_connection

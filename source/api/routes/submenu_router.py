@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 
 from core.config import settings
-from database.models import Submenu as Entity
 from database.schemas import Submenu, SubmenuCreation, SubmenuUpdation
-from service.restaurant_menu_service import RestaurantMenuService, TargetCode
+from service.restaurant_service import RestaurantService, TargetCode
 
 
 path = settings.path
@@ -12,8 +11,8 @@ submenu_router = APIRouter(prefix=path.target_submenus, tags=['Submenu'])
 
 
 @submenu_router.post('', name='Create submenu', status_code=201, response_model=Submenu)
-async def create(target_menu_id: str, creation_schema: SubmenuCreation, task: BackgroundTasks, service: RestaurantMenuService = Depends()):
-    target_code = TargetCode.construct_entity_name(Entity)
+async def create(target_menu_id: str, creation_schema: SubmenuCreation, task: BackgroundTasks, service: RestaurantService = Depends()):
+    target_code = TargetCode.construct_entity_name(Submenu)
     target_code.menu = target_menu_id
     try:
         return await service.create(creation_schema, target_code, task)
@@ -22,8 +21,8 @@ async def create(target_menu_id: str, creation_schema: SubmenuCreation, task: Ba
 
 
 @submenu_router.get('', name='Get all submenu', status_code=200, response_model=list[Submenu])
-async def read_all(target_menu_id: str, task: BackgroundTasks, service: RestaurantMenuService = Depends()):
-    target_code = TargetCode.construct_entity_name(Entity)
+async def read_all(target_menu_id: str, task: BackgroundTasks, service: RestaurantService = Depends()):
+    target_code = TargetCode.construct_entity_name(Submenu)
     target_code.menu = target_menu_id
     return await service.read_all(target_code, task)
 
@@ -32,8 +31,8 @@ async def read_all(target_menu_id: str, task: BackgroundTasks, service: Restaura
 async def read_one(target_menu_id: str,
                    target_submenu_id: str,
                    task: BackgroundTasks,
-                   service: RestaurantMenuService = Depends()):
-    target_code = TargetCode.construct_entity_name(Entity)
+                   service: RestaurantService = Depends()):
+    target_code = TargetCode.construct_entity_name(Submenu)
     target_code.menu = target_menu_id
     target_code.submenu = target_submenu_id
     try:
@@ -47,8 +46,8 @@ async def update(target_menu_id: str,
                  target_submenu_id: str,
                  updation_schema: SubmenuUpdation,
                  task: BackgroundTasks,
-                 service: RestaurantMenuService = Depends()):
-    target_code = TargetCode.construct_entity_name(Entity)
+                 service: RestaurantService = Depends()):
+    target_code = TargetCode.construct_entity_name(Submenu)
     target_code.menu = target_menu_id
     target_code.submenu = target_submenu_id
     try:
@@ -61,8 +60,8 @@ async def update(target_menu_id: str,
 async def delete(target_menu_id: str,
                  target_submenu_id: str,
                  task: BackgroundTasks,
-                 service: RestaurantMenuService = Depends()):
-    target_code = TargetCode.construct_entity_name(Entity)
+                 service: RestaurantService = Depends()):
+    target_code = TargetCode.construct_entity_name(Submenu)
     target_code.menu = target_menu_id
     target_code.submenu = target_submenu_id
     try:

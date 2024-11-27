@@ -2,10 +2,11 @@ import pickle
 from dataclasses import dataclass, fields, field
 
 from fastapi import Depends, BackgroundTasks
+from pydantic import BaseModel
 
 from database.models import Menu, Submenu, Dish, Base
 from database.schemas import Schema
-from repository.restaurant_menu_repository import RestaurantMenuRepository
+from repository.restaurant_repository import RestaurantRepository
 from utils.redis_cache import RedisCache
 
 
@@ -31,16 +32,16 @@ class TargetCode:
         }
 
     @classmethod
-    def construct_entity_name(cls, entity: Base):
-        return cls(entity.__name__.lower())
+    def construct_entity_name(cls, schema: type[BaseModel]):
+        return cls(schema.__name__.lower())
 
 class EntityNotRegistered(ValueError):
     def __init__(self, entity_name: str | None) -> None:
         super().__init__(f'Entity "{entity_name.capitalize()}" is not registered.')
 
 
-class RestaurantMenuService:
-    def __init__(self, repository: RestaurantMenuRepository = Depends(), cache: RedisCache = Depends()) -> None:
+class RestaurantService:
+    def __init__(self, repository: RestaurantRepository = Depends(), cache: RedisCache = Depends()) -> None:
         self.repository = repository
         self.cache = cache
         self.entity_types = [Menu, Submenu, Dish]

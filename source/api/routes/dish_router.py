@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 
 from core.config import settings
-from database.models import Dish as Entity
 from database.schemas import Dish, DishCreation, DishUpdation
-from service.restaurant_menu_service import RestaurantMenuService, TargetCode
+from service.restaurant_service import RestaurantService, TargetCode
 
 
 path = settings.path
@@ -16,8 +15,8 @@ async def create(target_menu_id: str,
                  target_submenu_id: str,
                  creation_schema: DishCreation,
                  task: BackgroundTasks,
-                 service: RestaurantMenuService=Depends()):
-    target_code = TargetCode.construct_entity_name(Entity)
+                 service: RestaurantService=Depends()):
+    target_code = TargetCode.construct_entity_name(Dish)
     target_code.menu = target_menu_id
     target_code.submenu = target_submenu_id
     try:
@@ -30,8 +29,8 @@ async def create(target_menu_id: str,
 async def read_all(target_menu_id: str,
                    target_submenu_id: str,
                    task: BackgroundTasks,
-                   service: RestaurantMenuService = Depends()):
-    target_code = TargetCode.construct_entity_name(Entity)
+                   service: RestaurantService = Depends()):
+    target_code = TargetCode.construct_entity_name(Dish)
     target_code.menu = target_menu_id
     target_code.submenu = target_submenu_id
     return await service.read_all(target_code, task)
@@ -42,8 +41,8 @@ async def read_one(target_menu_id: str,
                    target_submenu_id: str,
                    target_dish_id: str,
                    task: BackgroundTasks,
-                   service: RestaurantMenuService = Depends()):
-    target_code = TargetCode.construct_entity_name(Entity)
+                   service: RestaurantService = Depends()):
+    target_code = TargetCode.construct_entity_name(Dish)
     target_code.menu = target_menu_id
     target_code.submenu = target_submenu_id
     target_code.dish = target_dish_id
@@ -59,8 +58,8 @@ async def update(target_menu_id: str,
                  target_dish_id: str,
                  updation_schema: DishUpdation,
                  task: BackgroundTasks,
-                 service: RestaurantMenuService=Depends()):
-    target_code = TargetCode.construct_entity_name(Entity)
+                 service: RestaurantService=Depends()):
+    target_code = TargetCode.construct_entity_name(Dish)
     target_code.menu = target_menu_id
     target_code.submenu = target_submenu_id
     target_code.dish = target_dish_id
@@ -75,8 +74,8 @@ async def delete(target_menu_id: str,
                  target_submenu_id: str,
                  target_dish_id: str,
                  task: BackgroundTasks,
-                 service: RestaurantMenuService=Depends()):
-    target_code = TargetCode.construct_entity_name(Entity)
+                 service: RestaurantService=Depends()):
+    target_code = TargetCode.construct_entity_name(Dish)
     target_code.menu = target_menu_id
     target_code.submenu = target_submenu_id
     target_code.dish = target_dish_id
