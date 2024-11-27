@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 
+from core.config import settings
 from database.models import Menu as Entity
 from database.schemas import Menu, MenuCreation, MenuUpdation
 from service.restaurant_menu_service import RestaurantMenuService, TargetCode
-from core.config import settings
 
 
 path = settings.path
