@@ -5,7 +5,7 @@ from database.schemas import Dish, DishCreation, DishUpdation
 from service.restaurant_service import RestaurantService, TargetCode
 
 
-path = settings.path
+path = settings.url
 
 dish_router = APIRouter(prefix=path.target_dishes, tags=['Dish'])
 

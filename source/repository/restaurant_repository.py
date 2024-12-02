@@ -7,6 +7,9 @@ from database.models import Base
 from database.session_manager import SessionManager
 
 
+# from sqlalchemy.dialects.postgresql import insert
+
+
 class RestaurantRepository:
 
     def __init__(self, db_connection: SessionManager = Depends(SessionManager)) -> None:
@@ -29,6 +32,8 @@ class RestaurantRepository:
             return (await session.scalars(select(entity_type))).all()
 
     async def update_entity(self, entity_type: Type[Base], entity_id: str, **kwargs: Any) -> Base | None:
+        entity = entity_type(**kwargs)
+        # statement = insert(entity_type).values(**entity.as_dict).on_conflict_do_update
         async with self.db_connection.session() as session:
             entity = await session.get(entity_type, entity_id)
             for column_name, value in kwargs.items(): setattr(entity, column_name, value)

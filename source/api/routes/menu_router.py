@@ -5,7 +5,7 @@ from database.schemas import Menu, MenuCreation, MenuUpdation
 from service.restaurant_service import RestaurantService, TargetCode
 
 
-path = settings.path
+path = settings.url
 
 menu_router = APIRouter(prefix=path.target_menus, tags=['Menu'])
 

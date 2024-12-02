@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from api.routes.dish_router import dish_router
 from api.routes.menu_router import menu_router
 from api.routes.submenu_router import submenu_router
+from core.config import settings
 from database.session_manager import init_models
 
 
@@ -43,5 +44,4 @@ app.include_router(dish_router)
 
 
 if __name__ == '__main__':
-    uvicorn.run('main:app', reload=True)
-
+    uvicorn.run('main:app', reload=True, host=settings.url.host, port=settings.url.port)

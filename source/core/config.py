@@ -29,6 +29,8 @@ class RedisSettings:
 
 @dataclass
 class UrlPathSettings:
+    host: str = '127.0.0.1'
+    port: int = 8000
     prefix: str = '/api/v1'
     target_menus: str = f'{prefix}/menus'
     target_menu_id: str = '/{target_menu_id}'
@@ -41,7 +43,7 @@ class UrlPathSettings:
 class Settings:
     db: DbSettings = DbSettings()
     redis_cache: RedisSettings = RedisSettings()
-    path: UrlPathSettings = UrlPathSettings()
+    url: UrlPathSettings = UrlPathSettings()
 
 
 settings = Settings()

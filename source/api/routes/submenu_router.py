@@ -5,7 +5,7 @@ from database.schemas import Submenu, SubmenuCreation, SubmenuUpdation
 from service.restaurant_service import RestaurantService, TargetCode
 
 
-path = settings.path
+path = settings.url
 
 submenu_router = APIRouter(prefix=path.target_submenus, tags=['Submenu'])
 

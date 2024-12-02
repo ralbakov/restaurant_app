@@ -2,8 +2,9 @@ import asyncio
 import hashlib
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from enum import IntEnum
+from typing import Any
 
 from openpyxl import load_workbook, Workbook
 from openpyxl.worksheet.worksheet import Worksheet
@@ -32,15 +33,15 @@ class Dish(BaseMenu):
     discount: None | float = None
     submenu_id: uuid.UUID = None
 
-    def __post_init__(self) -> None:
-        self.discount = 0 if self.discount is None else self.discount
-
 
 @dataclass
 class RestaurantMenu:
     menus: list[Menu] = field(default_factory=list)
     submenus: list[Submenu] = field(default_factory=list)
     dishes: list[Dish] = field(default_factory=list)
+
+    def as_dict(self) -> dict[str, list[dict[str, Any]]]:
+        return asdict(self)
 
 
 class ColumnMenu(IntEnum):
@@ -69,7 +70,6 @@ class ParserXlsxService:
         self.wb: Workbook | None = None
         self.__path: str | None = None
         self.__hash: str | None = None
-        self.__hash_values = set()
 
     def load_sheet(self, path: str) -> None:
         self.__path = path
@@ -82,21 +82,18 @@ class ParserXlsxService:
                          column_type: type[IntEnum],
                          entity_id: uuid.UUID = None) -> BaseMenu | None:
         values = [self.sheet.cell(row=row, column=column).value for column in column_type]
-        if not all(values):
+        if not all(values[:-1]):
             return
-        hash_sum = sum(hash(value) for value in values[1:])
-        self.__hash_values.add(hash_sum)
         values[0] = uuid.uuid4()
         if entity_id:
             values.append(entity_id)
         return entity_type.__call__(*values)
 
     async def get_restaurant_menu(self) -> RestaurantMenu | None:
-        if not await self._check_hash_sheet():
+        if not await self.__check_hash_sheet():
             return
-        self.__hash_values.clear()
         restaurant_menu = RestaurantMenu()
-        rows = (_ for _ in range(1, self.sheet.max_row + 1))
+        rows = iter(range(1, self.sheet.max_row + 1))
         menu_id, submenu_id = None, None
         for row in rows:
             if menu := self.construct_entity(Menu, row, ColumnMenu):
@@ -109,19 +106,18 @@ class ParserXlsxService:
                 row = next(rows)
             if dish := self.construct_entity(Dish, row, ColumnDish, submenu_id):
                 restaurant_menu.dishes.append(dish)
-        print(f'{self.__hash_values = }, {self.__hash = }')
         return restaurant_menu
 
-    def _generate_hash(self) -> str:
+    def __generate_hash(self) -> str:
         hash_ = hashlib.sha256()
         with open(self.__path, 'rb') as file:
             hash_.update(file.read())
         return hash_.hexdigest()
 
-    async def _check_hash_sheet(self) -> bool:
+    async def __check_hash_sheet(self) -> bool:
         with ThreadPoolExecutor() as executor:
             loop = asyncio.get_running_loop()
-            hash_ = await loop.run_in_executor(executor, self._generate_hash)
+            hash_ = await loop.run_in_executor(executor, self.__generate_hash)
         if self.__hash is None or self.__hash != hash_:
             self.__hash = hash_
             return True

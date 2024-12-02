@@ -7,7 +7,10 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship,
 
 class Base(DeclarativeBase):
     id: Mapped[uuid.UUID]
-    pass
+
+    @property
+    def as_dict(self):
+        return {column.name: getattr(self, column.name) for column in self.__mapper__.columns}
 
 
 class Dish(Base):
