@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import DECIMAL, ForeignKey, String, func, select
+from sqlalchemy import DECIMAL, ForeignKey, String, func, select, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, column_property
 
@@ -17,6 +17,7 @@ class Dish(Base):
     title: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     description: Mapped[str] = mapped_column(String, nullable=False)
     price: Mapped[str] = mapped_column(DECIMAL(scale=2), nullable=False)
+    discount: Mapped[int] = mapped_column(Integer, nullable=True)
     submenu_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('submenu.id', ondelete='cascade'))
     submenu: Mapped['Submenu'] = relationship(back_populates='dish')
 

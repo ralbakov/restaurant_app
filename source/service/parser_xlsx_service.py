@@ -82,18 +82,19 @@ class ParserXlsxService:
                          column_type: type[IntEnum],
                          entity_id: uuid.UUID = None) -> BaseMenu | None:
         values = [self.sheet.cell(row=row, column=column).value for column in column_type]
-        hash_values = sum(hash(value) for value in values[1:])
-        if (len(values) < 5 and not all(values)) or hash_values in self.__hash_values:
+        if not all(values):
             return
-        self.__hash_values.add(hash_values)
+        hash_sum = sum(hash(value) for value in values[1:])
+        self.__hash_values.add(hash_sum)
         values[0] = uuid.uuid4()
         if entity_id:
             values.append(entity_id)
-        return entity_type(*values)
+        return entity_type.__call__(*values)
 
     async def get_restaurant_menu(self) -> RestaurantMenu | None:
         if not await self._check_hash_sheet():
             return
+        self.__hash_values.clear()
         restaurant_menu = RestaurantMenu()
         rows = (_ for _ in range(1, self.sheet.max_row + 1))
         menu_id, submenu_id = None, None
@@ -108,6 +109,7 @@ class ParserXlsxService:
                 row = next(rows)
             if dish := self.construct_entity(Dish, row, ColumnDish, submenu_id):
                 restaurant_menu.dishes.append(dish)
+        print(f'{self.__hash_values = }, {self.__hash = }')
         return restaurant_menu
 
     def _generate_hash(self) -> str:

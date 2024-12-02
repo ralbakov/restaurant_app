@@ -39,7 +39,7 @@ async def update(target_menu_id: str,
                  updation_schema: MenuUpdation,
                  task: BackgroundTasks,
                  service: RestaurantService=Depends()):
-    target_code = TargetCode.construct_entity_name(Entity)
+    target_code = TargetCode.construct_entity_name(Menu)
     target_code.menu = target_menu_id
     try:
         return await service.update(updation_schema, target_code, task)
