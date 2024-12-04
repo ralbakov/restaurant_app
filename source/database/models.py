@@ -35,7 +35,9 @@ class Submenu(Base):
     dish: Mapped['Dish'] = relationship(back_populates='submenu')
     menu: Mapped['Menu'] = relationship(back_populates='submenu')
     dishes_count = column_property(
-        select(func.count(Dish.id)).where(Dish.submenu_id == id).correlate_except(Dish).as_scalar()
+        select(func.count(Dish.id)).
+        where(Dish.submenu_id == id).
+        correlate_except(Dish).scalar_subquery()
     )
 
 
@@ -47,10 +49,12 @@ class Menu(Base):
     description: Mapped[str] = mapped_column(String, nullable=False)
     submenu: Mapped['Submenu'] = relationship(back_populates='menu', cascade='all, delete')
     submenus_count = column_property(
-        select(func.count(Submenu.id)).where(Submenu.menu_id == id).correlate_except(Submenu).scalar_subquery()
+        select(func.count(Submenu.id)).
+        where(Submenu.menu_id == id).
+        correlate_except(Submenu).scalar_subquery()
     )
     dishes_count = column_property(
         select(func.count(Dish.id)).
-        where(Dish.submenu_id == (select(Submenu.id).where(Submenu.menu_id == id)).scalar_subquery()).
+        where(Dish.submenu_id == Submenu.id, Submenu.menu_id == id).
         correlate_except(Dish).scalar_subquery()
     )

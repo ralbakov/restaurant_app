@@ -1,11 +1,15 @@
 from decimal import Decimal
+from typing import Optional, Self
 
 from pydantic import UUID4, BaseModel, Field, ConfigDict, field_validator, model_validator
-from typing_extensions import Self
 
 
 class Schema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
+
+class Identification(Schema):
+    id: Optional[UUID4] = None
 
 
 class MenuBase(Schema):
@@ -13,13 +17,12 @@ class MenuBase(Schema):
     description: str | None
 
 
-class Menu(MenuBase):
-    id: UUID4
+class Menu(MenuBase, Identification):
     submenus_count: int
     dishes_count: int
 
 
-class MenuCreation(MenuBase):
+class MenuCreation(MenuBase, Identification):
     pass
 
 
@@ -32,13 +35,12 @@ class SubmenuBase(Schema):
     description: str | None
 
 
-class Submenu(SubmenuBase):
-    id: UUID4
+class Submenu(SubmenuBase, Identification):
     menu_id: UUID4
     dishes_count: int
 
 
-class SubmenuCreation(SubmenuBase):
+class SubmenuCreation(SubmenuBase, Identification):
     pass
 
 
@@ -50,18 +52,19 @@ class DishBase(Schema):
     title: str
     description: str | None
     price: Decimal = Field(decimal_places=2)
-    discount: int | None = Field(default=None)
+    discount: Optional[int] = None
 
     @field_validator('discount') # noqa
     @classmethod
-    def validate_discount(cls, discount: int | None) -> int | None:
-        if discount is None or 0 <= discount < 100:
+    def validate_discount(cls, discount: int | None) -> int:
+        if not discount:
+            return 0
+        if 0 <= discount < 100:
             return discount
         raise ValueError('Размер скидки не может быть отрицательным или больше 100')
 
 
-class Dish(DishBase):
-    id: UUID4
+class Dish(DishBase, Identification):
     submenu_id: UUID4
 
     @model_validator(mode='after')
@@ -71,7 +74,7 @@ class Dish(DishBase):
         return self
 
 
-class DishCreation(DishBase):
+class DishCreation(DishBase, Identification):
     pass
 
 

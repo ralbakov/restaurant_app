@@ -16,6 +16,9 @@ class BaseMenu:
     title: str
     description: str
 
+    def as_dict(self) -> dict[str, list[dict[str, Any]]]:
+        return asdict(self)
+
 
 @dataclass
 class Menu(BaseMenu):
@@ -39,9 +42,6 @@ class RestaurantMenu:
     menus: list[Menu] = field(default_factory=list)
     submenus: list[Submenu] = field(default_factory=list)
     dishes: list[Dish] = field(default_factory=list)
-
-    def as_dict(self) -> dict[str, list[dict[str, Any]]]:
-        return asdict(self)
 
 
 class ColumnMenu(IntEnum):
@@ -84,7 +84,7 @@ class ParserXlsxService:
         values = [self.sheet.cell(row=row, column=column).value for column in column_type]
         if not all(values[:-1]):
             return
-        values[0] = uuid.uuid4()
+        values[0] = uuid.uuid4().__str__()
         if entity_id:
             values.append(entity_id)
         return entity_type.__call__(*values)
@@ -122,21 +122,3 @@ class ParserXlsxService:
             self.__hash = hash_
             return True
         return False
-
-
-if __name__ == '__main__':
-    async def main():
-        parser = ParserXlsxService()
-        parser.load_sheet('../admin/Menu_2.xlsx')
-        restaurant_menu = await parser.get_restaurant_menu()
-        assert restaurant_menu is not None, "restaurant_menu should be not None"
-        for menu in restaurant_menu.menus:
-            print(menu)
-        for submenu in restaurant_menu.submenus:
-            print(submenu)
-        for dish in restaurant_menu.dishes:
-            print(dish)
-        restaurant_menu_2 = await parser.get_restaurant_menu()
-        assert restaurant_menu_2 is None, "restaurant_menu should None"
-
-    asyncio.run(main())
