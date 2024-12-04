@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -11,9 +12,8 @@ from task.parser_xlsx_service import RestaurantMenu, ParserXlsxService
 
 class HttpClientAdminRestaurant(AbstractHttpClient):
     def __init__(self):
-        self.host = settings.url.host
-        self.port = settings.url.port
-        self.base_url = f'http://{self.host}:{self.port}'
+        self.base_url: str = f'http://{settings.url.host}:{settings.url.host}'
+        self.hash_file: str | None = None
 
     @property
     @asynccontextmanager
@@ -66,6 +66,20 @@ class HttpClientAdminRestaurant(AbstractHttpClient):
 
     async def get_titles(self, url: str) -> list[str]:
         return [value['title'] for value in await self.get(url)]
+
+    @staticmethod
+    async def __generate_hash(path: str) -> str:
+        hash_ = hashlib.sha256()
+        with open(path, 'rb') as file:
+            hash_.update(file.read())
+        return hash_.hexdigest()
+
+    async def check_hash_file(self, path: str) -> bool:
+        hash_ = await self.__generate_hash(path)
+        if self.hash_file is None or self.hash_file != hash_:
+            self.hash_file = hash_
+            return True
+        return False
 
 
 if __name__ == '__main__':

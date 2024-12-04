@@ -56,10 +56,8 @@ class DishBase(Schema):
 
     @field_validator('discount') # noqa
     @classmethod
-    def validate_discount(cls, discount: int | None) -> int:
-        if not discount:
-            return 0
-        if 0 <= discount < 100:
+    def validate_discount(cls, discount: int | None) -> int | None:
+        if discount is None or 0 <= discount < 100:
             return discount
         raise ValueError('Размер скидки не может быть отрицательным или больше 100')
 
@@ -71,6 +69,8 @@ class Dish(DishBase, Identification):
     def get_price_with_discount(self) -> Self:
         if discount := self.discount:
             self.price = (self.price * Decimal(1 - discount / 100)).quantize(Decimal("1.00"))
+        else:
+            self.discount = 0
         return self
 
 

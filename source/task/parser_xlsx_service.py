@@ -1,12 +1,9 @@
-import asyncio
-import hashlib
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, asdict
 from enum import IntEnum
 from typing import Any
 
-from openpyxl import load_workbook, Workbook
+from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
 
@@ -67,14 +64,9 @@ class ColumnDish(IntEnum):
 class ParserXlsxService:
     def __init__(self) -> None:
         self.sheet:  Worksheet | None = None
-        self.wb: Workbook | None = None
-        self.__path: str | None = None
-        self.__hash: str | None = None
 
     def load_sheet(self, path: str) -> None:
-        self.__path = path
-        self.wb = load_workbook(filename=path)
-        self.sheet = self.wb.active
+        self.sheet = load_workbook(filename=path, read_only=True).active
 
     def construct_entity(self,
                          entity_type: type[BaseMenu],
@@ -90,8 +82,6 @@ class ParserXlsxService:
         return entity_type.__call__(*values)
 
     async def get_restaurant_menu(self) -> RestaurantMenu | None:
-        if not await self.__check_hash_sheet():
-            return
         restaurant_menu = RestaurantMenu()
         rows = iter(range(1, self.sheet.max_row + 1))
         menu_id, submenu_id = None, None
@@ -106,19 +96,5 @@ class ParserXlsxService:
                 row = next(rows)
             if dish := self.construct_entity(Dish, row, ColumnDish, submenu_id):
                 restaurant_menu.dishes.append(dish)
+        self.sheet = None
         return restaurant_menu
-
-    def __generate_hash(self) -> str:
-        hash_ = hashlib.sha256()
-        with open(self.__path, 'rb') as file:
-            hash_.update(file.read())
-        return hash_.hexdigest()
-
-    async def __check_hash_sheet(self) -> bool:
-        with ThreadPoolExecutor() as executor:
-            loop = asyncio.get_running_loop()
-            hash_ = await loop.run_in_executor(executor, self.__generate_hash)
-        if self.__hash is None or self.__hash != hash_:
-            self.__hash = hash_
-            return True
-        return False

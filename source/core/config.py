@@ -28,7 +28,7 @@ class RedisSettings:
     exp_second_set: int = 600
 
 @dataclass
-class UrlPathSettings:
+class UrlSettings:
     host: str = '127.0.0.1'
     port: int = 8000
     prefix: str = '/api/v1'
@@ -43,7 +43,9 @@ class UrlPathSettings:
 class Settings:
     db: DbSettings = DbSettings()
     redis_cache: RedisSettings = RedisSettings()
-    url: UrlPathSettings = UrlPathSettings()
+    url: UrlSettings = UrlSettings()
+    file_path: str = BASE_DIR / 'source/admin/Menu_2.xlsx'
 
 
 settings = Settings()
+print(settings.file_path)
