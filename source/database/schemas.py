@@ -4,53 +4,44 @@ from typing import Optional, Self
 from pydantic import UUID4, BaseModel, Field, ConfigDict, field_validator, model_validator
 
 
-class Schema(BaseModel):
+class BaseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-
-class Identification(Schema):
-    id: Optional[UUID4] = None
-
-
-class MenuBase(Schema):
     title: str
     description: str | None
 
 
-class Menu(MenuBase, Identification):
+class Identification(BaseModel):
+    id: Optional[UUID4] = None
+
+
+class Menu(BaseSchema, Identification):
     submenus_count: int
     dishes_count: int
 
 
-class MenuCreation(MenuBase, Identification):
+class MenuCreation(BaseSchema, Identification):
     pass
 
 
-class MenuUpdation(MenuBase):
+class MenuUpdation(BaseSchema):
     pass
 
 
-class SubmenuBase(Schema):
-    title: str
-    description: str | None
-
-
-class Submenu(SubmenuBase, Identification):
+class Submenu(BaseSchema, Identification):
     menu_id: UUID4
     dishes_count: int
 
 
-class SubmenuCreation(SubmenuBase, Identification):
+class SubmenuCreation(BaseSchema, Identification):
     pass
 
 
-class SubmenuUpdation(SubmenuBase):
+class SubmenuUpdation(BaseSchema):
     pass
 
 
-class DishBase(Schema):
-    title: str
-    description: str | None
+class DishBase(BaseSchema):
     price: Decimal = Field(decimal_places=2)
     discount: Optional[int] = None
 

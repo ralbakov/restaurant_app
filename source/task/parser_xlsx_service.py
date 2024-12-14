@@ -1,44 +1,19 @@
+import asyncio
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Any
 
 from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
-
-@dataclass
-class BaseMenu:
-    id: uuid.UUID
-    title: str
-    description: str
-
-    def as_dict(self) -> dict[str, list[dict[str, Any]]]:
-        return asdict(self)
-
-
-@dataclass
-class Menu(BaseMenu):
-    pass
-
-
-@dataclass
-class Submenu(BaseMenu):
-    menu_id: uuid.UUID
-
-
-@dataclass
-class Dish(BaseMenu):
-    price: float
-    discount: None | float = None
-    submenu_id: uuid.UUID = None
+from database.schemas import MenuCreation, BaseSchema, SubmenuCreation, DishCreation
 
 
 @dataclass
 class RestaurantMenu:
-    menus: list[Menu] = field(default_factory=list)
-    submenus: list[Submenu] = field(default_factory=list)
-    dishes: list[Dish] = field(default_factory=list)
+    menus: list[MenuCreation] = field(default_factory=list)
+    submenus: list[SubmenuCreation] = field(default_factory=list)
+    dishes: list[DishCreation] = field(default_factory=list)
 
 
 class ColumnMenu(IntEnum):
@@ -65,36 +40,47 @@ class ParserXlsxService:
     def __init__(self) -> None:
         self.sheet:  Worksheet | None = None
 
-    def load_sheet(self, path: str) -> None:
+    async def load_sheet(self, path: str) -> None:
         self.sheet = load_workbook(filename=path, read_only=True).active
 
     def construct_entity(self,
-                         entity_type: type[BaseMenu],
+                         entity_type: type[BaseSchema],
                          row: int,
                          column_type: type[IntEnum],
-                         entity_id: uuid.UUID = None) -> BaseMenu | None:
+                         entity_id: uuid.UUID = None) :
         values = [self.sheet.cell(row=row, column=column).value for column in column_type]
         if not all(values[:-1]):
             return
-        values[0] = uuid.uuid4().__str__()
-        if entity_id:
-            values.append(entity_id)
-        return entity_type.__call__(*values)
 
-    async def get_restaurant_menu(self) -> RestaurantMenu | None:
+        values[0] = uuid.uuid4()
+        if entity_id is not None:
+            values.append(entity_id)
+        keys = entity_type.model_fields.keys()
+        return entity_type(**dict(zip(keys, values)))
+
+    def get_restaurant_menu(self) -> RestaurantMenu | None:
         restaurant_menu = RestaurantMenu()
         rows = iter(range(1, self.sheet.max_row + 1))
         menu_id, submenu_id = None, None
         for row in rows:
-            if menu := self.construct_entity(Menu, row, ColumnMenu):
+            if menu := self.construct_entity(MenuCreation, row, ColumnMenu):
                 menu_id = menu.id
                 restaurant_menu.menus.append(menu)
                 row = next(rows)
-            if submenu := self.construct_entity(Submenu, row, ColumnSubmenu, menu_id):
+            if submenu := self.construct_entity(SubmenuCreation, row, ColumnSubmenu, menu_id):
                 submenu_id = submenu.id
                 restaurant_menu.submenus.append(submenu)
                 row = next(rows)
-            if dish := self.construct_entity(Dish, row, ColumnDish, submenu_id):
+            if dish := self.construct_entity(DishCreation, row, ColumnDish, submenu_id):
                 restaurant_menu.dishes.append(dish)
         self.sheet = None
         return restaurant_menu
+
+if __name__ == '__main__':
+    async def main():
+        parser = ParserXlsxService()
+        await parser.load_sheet('../admin/Menu_2.xlsx')
+        restaurant_menu = parser.get_restaurant_menu()
+        print(restaurant_menu)
+
+    asyncio.run(main())

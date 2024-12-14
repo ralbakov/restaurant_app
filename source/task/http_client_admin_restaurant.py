@@ -85,8 +85,8 @@ class HttpClientAdminRestaurant(AbstractHttpClient):
 if __name__ == '__main__':
     async def main():
         parser = ParserXlsxService()
-        parser.load_sheet('../admin/Menu_2.xlsx')
-        restaurant_menu = await parser.get_restaurant_menu()
+        await parser.load_sheet('../admin/Menu_2.xlsx')
+        restaurant_menu = parser.get_restaurant_menu()
         client = HttpClientAdminRestaurant()
         await client.load_restaurant_menu_in_db(restaurant_menu)
 
