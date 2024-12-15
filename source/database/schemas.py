@@ -16,8 +16,8 @@ class Identification(BaseModel):
 
 
 class Menu(BaseSchema, Identification):
-    submenus_count: int
-    dishes_count: int
+    submenus_count: Optional[int] = None
+    dishes_count: Optional[int] = None
 
 
 class MenuCreation(BaseSchema, Identification):
@@ -30,7 +30,7 @@ class MenuUpdation(BaseSchema):
 
 class Submenu(BaseSchema, Identification):
     menu_id: UUID4
-    dishes_count: int
+    dishes_count: Optional[int] = None
 
 
 class SubmenuCreation(BaseSchema, Identification):

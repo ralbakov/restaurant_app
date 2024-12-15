@@ -3,11 +3,11 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 
+from core.config import settings
+from database.session_manager import init_models
 from router.dish_router import dish_router
 from router.menu_router import menu_router
 from router.submenu_router import submenu_router
-from core.config import settings
-from database.session_manager import init_models
 
 
 @asynccontextmanager

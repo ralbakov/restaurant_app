@@ -6,14 +6,14 @@ from enum import IntEnum
 from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
-from database.schemas import MenuCreation, BaseSchema, SubmenuCreation, DishCreation
+from database.schemas import BaseSchema, Menu, Submenu, Dish
 
 
 @dataclass
 class RestaurantMenu:
-    menus: list[MenuCreation] = field(default_factory=list)
-    submenus: list[SubmenuCreation] = field(default_factory=list)
-    dishes: list[DishCreation] = field(default_factory=list)
+    menus: list[Menu] = field(default_factory=list)
+    submenus: list[Submenu] = field(default_factory=list)
+    dishes: list[Dish] = field(default_factory=list)
 
 
 class ColumnMenu(IntEnum):
@@ -63,15 +63,15 @@ class ParserXlsxService:
         rows = iter(range(1, self.sheet.max_row + 1))
         menu_id, submenu_id = None, None
         for row in rows:
-            if menu := self.construct_entity(MenuCreation, row, ColumnMenu):
+            if menu := self.construct_entity(Menu, row, ColumnMenu):
                 menu_id = menu.id
                 restaurant_menu.menus.append(menu)
                 row = next(rows)
-            if submenu := self.construct_entity(SubmenuCreation, row, ColumnSubmenu, menu_id):
+            if submenu := self.construct_entity(Submenu, row, ColumnSubmenu, menu_id):
                 submenu_id = submenu.id
                 restaurant_menu.submenus.append(submenu)
                 row = next(rows)
-            if dish := self.construct_entity(DishCreation, row, ColumnDish, submenu_id):
+            if dish := self.construct_entity(Dish, row, ColumnDish, submenu_id):
                 restaurant_menu.dishes.append(dish)
         self.sheet = None
         return restaurant_menu

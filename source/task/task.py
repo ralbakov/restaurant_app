@@ -14,7 +14,8 @@ client = HttpClientAdminRestaurant()
     default_retry_delay=15,
     max_retries=None,
 )
-def update_base():
+def update_base(parser: ParserXlsxService):
+
     try:
         pass
     except Exception as error:

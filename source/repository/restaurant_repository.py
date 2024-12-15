@@ -1,4 +1,4 @@
-from typing import Any, Type
+from typing import Any
 
 from fastapi import Depends
 from sqlalchemy import delete, select
@@ -15,7 +15,7 @@ class RestaurantRepository:
     def __init__(self, db_connection: SessionManager = Depends(SessionManager)) -> None:
         self.db_connection = db_connection
 
-    async def create_entity(self, entity_type: Type[Base], **kwargs: Any) -> Base:
+    async def create_entity(self, entity_type: type[Base], **kwargs: Any) -> Base:
         entity = entity_type(**kwargs)
         async with self.db_connection.session() as session:
             session.add(entity)
@@ -23,15 +23,15 @@ class RestaurantRepository:
             await session.refresh(entity)
             return entity
 
-    async def get_entity_by_id(self, entity_type: Type[Base], entity_id: str) -> Base | None:
+    async def get_entity_by_id(self, entity_type: type[Base], entity_id: str) -> Base | None:
         async with self.db_connection.session() as session:
             return await session.get(entity_type, entity_id)
 
-    async def get_entities(self, entity_type: Type[Base]) -> list[Base] | list[None]:
+    async def get_entities(self, entity_type: type[Base]) -> list[Base] | list[None]:
         async with self.db_connection.session() as session:
             return (await session.scalars(select(entity_type))).all()
 
-    async def update_entity(self, entity_type: Type[Base], entity_id: str, **kwargs: Any) -> Base | None:
+    async def update_entity(self, entity_type: type[Base], entity_id: str, **kwargs: Any) -> Base | None:
         entity = entity_type(**kwargs)
         # statement = insert(entity_type).values(**entity.as_dict).on_conflict_do_update
         async with self.db_connection.session() as session:
@@ -41,7 +41,7 @@ class RestaurantRepository:
             await session.refresh(entity)
             return entity
 
-    async def delete_entity(self, entity_type: Type[Base], entity_id: str) -> None:
+    async def delete_entity(self, entity_type: type[Base], entity_id: str) -> None:
         statement = delete(entity_type).where(entity_type.id == entity_id)
         async with self.db_connection.session() as session:
             await session.execute(statement)
