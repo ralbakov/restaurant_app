@@ -4,7 +4,7 @@ import uvicorn
 from fastapi import FastAPI
 
 from core.config import settings
-from database.session_manager import init_models
+from database.session_manager import init_models, close_engine
 from router.dish_router import dish_router
 from router.menu_router import menu_router
 from router.submenu_router import submenu_router
@@ -14,6 +14,7 @@ from router.submenu_router import submenu_router
 async def lifespan(app: FastAPI):
     await init_models()
     yield
+    await close_engine()
 
 app = FastAPI(lifespan=lifespan,
               title='Restaurant API',
