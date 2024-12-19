@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 
 from openpyxl import load_workbook
+from openpyxl.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
 from database.schemas import BaseSchema, Menu, Submenu, Dish
@@ -39,20 +40,27 @@ class ColumnDish(IntEnum):
 class ParserXlsxService:
     def __init__(self) -> None:
         self.sheet:  Worksheet | None = None
+        self.book: Workbook | None = None
+        self.path: str | None = None
 
     async def load_sheet(self, path: str) -> None:
-        self.sheet = load_workbook(filename=path, read_only=True).active
+        self.path = path
+        self.book = load_workbook(filename=path)
+        self.sheet = self.book.active
 
     def construct_entity(self,
                          entity_type: type[BaseSchema],
                          row: int,
                          column_type: type[IntEnum],
                          entity_id: uuid.UUID = None) :
-        values = [self.sheet.cell(row=row, column=column).value for column in column_type]
+        cells = [self.sheet.cell(row=row, column=column) for column in column_type]
+        values = [cell.value for cell in cells]
         if not all(values[:-1]):
             return
 
-        values[0] = uuid.uuid4()
+        if not self._check_uuid_4(values[0]):
+            values[0] = uuid.uuid4()
+            cells[0].value = str(values[0])
         if entity_id is not None:
             values.append(entity_id)
         keys = entity_type.model_fields.keys()
@@ -73,8 +81,19 @@ class ParserXlsxService:
                 row = next(rows)
             if dish := self.construct_entity(Dish, row, ColumnDish, submenu_id):
                 restaurant_menu.dishes.append(dish)
+        self.book.save(self.path)
+        self.book.close()
+        self.book = None
         self.sheet = None
         return restaurant_menu
+
+    @staticmethod
+    def _check_uuid_4(value: str) -> bool:
+        try:
+            uuid.UUID(value, version=4)
+            return True
+        except ValueError:
+            return False
 
 if __name__ == '__main__':
     async def main():

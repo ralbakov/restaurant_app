@@ -20,11 +20,6 @@ class Entity(Enum):
 ENTITY_NAME_TO_ENTITY_TYPE = {entity.value.__name__: entity.value for entity in Entity}
 
 
-class EntityNotRegistered(ValueError):
-    def __init__(self, entity_name: str | None) -> None:
-        super().__init__(f'Entity "{entity_name}" is not registered.')
-
-
 @dataclass
 class EntityCode:
     value: Base

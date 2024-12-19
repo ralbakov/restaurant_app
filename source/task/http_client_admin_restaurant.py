@@ -1,12 +1,13 @@
 import asyncio
 import hashlib
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from typing import Any, IO
 
 import httpx
 
 from core.config import settings
-from database.schemas import BaseSchema
+from database.schemas import Menu, Submenu, Dish, BaseSchema
 from task.abstract_http_client import AbstractHttpClient
 from task.parser_xlsx_service import RestaurantMenu, ParserXlsxService
 
@@ -38,11 +39,14 @@ class HttpClientAdminRestaurant(AbstractHttpClient):
         async with self.get_client as client:
             return (await client.put(url, json=data)).json()
 
-    async def load_restaurant_menu_in_db(self, restaurant_menu: RestaurantMenu):
-        menu = await self.get_entities(settings.url.target_menus)
-        if not menu:
-            await self.post_entity(restaurant_menu)
-        pass
+    async def load_restaurant_menu_in_db(self, restaurant_menu: RestaurantMenu) -> None:
+        menu_ids = await self.get_entity_ids(settings.url.target_menus)
+        if not menu_ids:
+            return await self.post_entity(restaurant_menu)
+        menu_id_to_submenu_ids = defaultdict(list)
+        for menu_id in menu_ids:
+            pass
+
 
     async def post_entity(self, restaurant_menu: RestaurantMenu) -> None:
         for menu in restaurant_menu.menus:
@@ -66,19 +70,14 @@ class HttpClientAdminRestaurant(AbstractHttpClient):
                 dish.model_dump_json()
             )
 
-    async def get_entities(self, url: str) -> set[str]:
-        entities = set()
-        for entity in await self.get(url):
-            del entity['id']
-            entities.add(entity)
-        return entities
+    async def get_entity_ids(self, url: str) -> list[str]:
+        return [entity['id'] for entity in await self.get(url)]
 
-    async def update_entity(self, entities: set[str], schemas: list[BaseSchema]) -> set[str]:
-        for schema in schemas:
-            schema = schema.model_dump_json()
-            del schema['id']
-            schema = set(schema)
-            if schema not in entities:
+    async def update_entity(self, url: str, schema_type: type[BaseSchema]) -> None:
+        entity = schema_type(**await self.get(url))
+        pass
+
+
 
 
     @staticmethod
