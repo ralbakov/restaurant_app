@@ -40,6 +40,8 @@ class RestaurantRepository:
         # statement = insert(entity_type).values(**entity.as_dict).on_conflict_do_update
         async with self._session as session:
             entity = await session.get(entity_type, entity_id)
+            if entity is None:
+                return
             for column_name, value in kwargs.items(): setattr(entity, column_name, value)
             await session.commit()
             await session.refresh(entity)

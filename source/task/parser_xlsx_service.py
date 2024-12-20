@@ -7,14 +7,14 @@ from openpyxl import load_workbook
 from openpyxl.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
-from database.schemas import BaseSchema, Menu, Submenu, Dish
+from database.schemas import BaseSchema, MenuCreation, SubmenuCreation, DishCreation
 
 
 @dataclass
 class RestaurantMenu:
-    menus: list[Menu] = field(default_factory=list)
-    submenus: list[Submenu] = field(default_factory=list)
-    dishes: list[Dish] = field(default_factory=list)
+    menu: dict[uuid.UUID, MenuCreation] = field(default_factory=dict)
+    submenu: dict[uuid.UUID, SubmenuCreation] = field(default_factory=dict)
+    dish: dict[uuid.UUID, DishCreation] = field(default_factory=dict)
 
 
 class ColumnMenu(IntEnum):
@@ -71,16 +71,16 @@ class ParserXlsxService:
         rows = iter(range(1, self.sheet.max_row + 1))
         menu_id, submenu_id = None, None
         for row in rows:
-            if menu := self.construct_entity(Menu, row, ColumnMenu):
+            if menu := self.construct_entity(MenuCreation, row, ColumnMenu):
                 menu_id = menu.id
-                restaurant_menu.menus.append(menu)
+                restaurant_menu.menu[menu_id] = menu
                 row = next(rows)
-            if submenu := self.construct_entity(Submenu, row, ColumnSubmenu, menu_id):
+            if submenu := self.construct_entity(SubmenuCreation, row, ColumnSubmenu, menu_id):
                 submenu_id = submenu.id
-                restaurant_menu.submenus.append(submenu)
+                restaurant_menu.submenu[menu_id] = submenu
                 row = next(rows)
-            if dish := self.construct_entity(Dish, row, ColumnDish, submenu_id):
-                restaurant_menu.dishes.append(dish)
+            if dish := self.construct_entity(DishCreation, row, ColumnDish, submenu_id):
+                restaurant_menu.dish[menu_id] = dish
         self.book.save(self.path)
         self.book.close()
         self.book = None

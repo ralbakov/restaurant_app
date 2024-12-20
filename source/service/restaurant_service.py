@@ -79,11 +79,13 @@ class RestaurantService:
         return entity
 
     async def update(self, schema: BaseSchema, target_code: TargetCode, task: BackgroundTasks) -> Base | None:
-        entity_type, _, entity_id = self._construct_entity_param(target_code)
+        entity_type, entity_name, entity_id = self._construct_entity_param(target_code)
         column_to_value = {
             column: value for column, value in schema.model_dump().items() if hasattr(entity_type, column)
         }
         entity = await self.repository.update_entity(entity_type, entity_id, **column_to_value)
+        if entity is None:
+            raise ValueError(f'{entity_name.lower()} not found')
         target_code.entity_code = EntityCode(entity)
         task.add_task(self._invalidate_cache,target_code)
         return entity
