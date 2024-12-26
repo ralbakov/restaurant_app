@@ -1,16 +1,16 @@
 import asyncio
 import hashlib
-from collections import defaultdict
+import json
 from contextlib import asynccontextmanager
+from decimal import Decimal
 from typing import Any, IO, TypeVar
-from uuid import UUID
 
 import httpx
 
+from abstract_http_client import AbstractHttpClient
 from core.config import settings
-from database.schemas import Menu, Submenu, Dish, BaseSchema
-from task.abstract_http_client import AbstractHttpClient
-from task.parser_xlsx_service import RestaurantMenu, ParserXlsxService
+from database.schemas import Menu, Submenu, Dish
+from parser_xlsx_service import RestaurantMenu, ParserXlsxService
 
 
 EntityFromExcel = TypeVar("EntityFromExcel", Menu, Submenu, Dish)
@@ -18,14 +18,14 @@ EntityFromExcel = TypeVar("EntityFromExcel", Menu, Submenu, Dish)
 
 class HttpClientAdminRestaurant(AbstractHttpClient):
     def __init__(self):
-        self.base_url: str = f'http://{settings.url.host}:{settings.url.host}'
+        self.base_url: str = f'http://{settings.url.host}:{settings.url.port}'
         self.hash_file: str | None = None
         self.file: IO | None = None
 
     @property
     @asynccontextmanager
     async def get_client(self):
-        client = httpx.AsyncClient(base_url=self.base_url).get()
+        client = httpx.AsyncClient(base_url=self.base_url)
         try:
             yield client
         finally:
@@ -34,17 +34,17 @@ class HttpClientAdminRestaurant(AbstractHttpClient):
     async def get(self, url: str) -> Any:
         async with self.get_client as client:
             response = await client.get(url)
-            if response.status != 200:
-                raise ValueError('not found')
+            if response.status_code != 200:
+                raise ValueError
             return response.json()
 
-    async def post(self, url: str, json: str) -> Any:
+    async def post(self, url: str, json_data: str) -> None:
         async with self.get_client as client:
-            return (await client.post(url, json=json)).json()
+            await client.post(url, data=json_data)
 
-    async def put(self, url: str, json: str) -> Any:
+    async def patch(self, url: str, json_data: str) -> None:
         async with self.get_client as client:
-            return (await client.put(url, json=json)).json()
+            await client.patch(url, data=json_data)
 
     async def delete(self, url: str) -> None:
         async with self.get_client as client:
@@ -54,90 +54,103 @@ class HttpClientAdminRestaurant(AbstractHttpClient):
         menu_ids_from_db = set(await self.get_entity_ids(settings.url.target_menus))
         if not menu_ids_from_db:
             return await self.post_entity(restaurant_menu)
-        menu_ids_from_excel = set(map(str, restaurant_menu.menu))
-        difference_ids = menu_ids_from_db - menu_ids_from_excel
-        if difference_ids:
-            await self.delete_difference_ids(difference_ids, settings.url.target_menu_id)
-            menu_ids_from_db.difference_update(difference_ids)
-        await self.update_entities(menu_ids_from_db, Menu, settings.url.target_menu_id, restaurant_menu.menu)
-        difference_ids = menu_ids_from_excel - menu_ids_from_db
-        if difference_ids:
-            await self.post_difference_ids(difference_ids, settings.url.target_menus, restaurant_menu.menu)
-        menu_id_to_submenu_ids = defaultdict(set)
-        for menu_id in menu_ids_from_db:
-            submenu_ids = set(await self.get_entity_ids(settings.url.target_submenus.format(menu_id)))
-            menu_id_to_submenu_ids[menu_id].update(submenu_ids)
-            await self.update_entities(submenu_ids,
-                                       Submenu,
-                                       settings.url.target_submenu_id.format(target_menu_id=menu_id),
-                                       restaurant_menu.submenu)
 
-        pass
+        target_menus = settings.url.target_menus
+        target_menu_id = settings.url.target_menu_id
+        target_submenus = settings.url.target_submenus
+        target_submenu_id = settings.url.target_submenu_id
+        target_dishes = settings.url.target_dishes
+        target_dish_id = settings.url.target_dish_id
 
+        menu_ids_from_excel = set(restaurant_menu.menu_id_to_menu)
+        diff = menu_ids_from_db - menu_ids_from_excel
+        if diff:
+            menu_id_url = target_menus + target_menu_id
+            for difference in diff:
+                await self.delete(menu_id_url.format(target_menu_id=difference))
+
+        menu_id_to_submenu_ids_from_db, menu_id_to_submenu_ids_from_excel = {}, {}
+        for menu_id in menu_ids_from_excel:
+            menu = restaurant_menu.menu_id_to_menu[menu_id]
+            menu_id_url = target_menus + target_menu_id.format(target_menu_id=menu_id)
+            await self.update_or_post_entity(target_menus, menu_id_url, menu)
+            menu_id_to_submenu_ids_from_db[menu_id] = set(
+                await self.get_entity_ids(target_submenus.format(target_menu_id=menu_id))
+            )
+            menu_id_to_submenu_ids_from_excel[menu_id] = set()
+
+        menu_id_submenu_id_to_dish_ids_from_db, menu_id_submenu_id_to_dish_ids_from_excel = {}, {}
+        for (menu_id, submenu_id), submenu in restaurant_menu.menu_id_submenu_id_to_submenu.items():
+            menu_id_to_submenu_ids_from_excel[menu_id].add(submenu_id)
+            submenus_url = target_submenus.format(target_menu_id=menu_id)
+            submenu_id_url = submenus_url + target_submenu_id.format(target_submenu_id=submenu_id)
+            await self.update_or_post_entity(submenus_url, submenu_id_url, submenu)
+            menu_id_submenu_id_to_dish_ids_from_db[(menu_id, submenu_id)] = set(
+                await self.get_entity_ids(target_dishes.format(target_menu_id=menu_id, target_submenu_id=submenu_id))
+            )
+            menu_id_submenu_id_to_dish_ids_from_excel[(menu_id, submenu_id)] = set()
+
+        for id_ in menu_id_to_submenu_ids_from_db:
+            diff = menu_id_to_submenu_ids_from_db[id_] - menu_id_to_submenu_ids_from_excel[id_]
+            if diff:
+                submenu_id_url = target_submenus + target_submenu_id
+                for difference in diff:
+                    await self.delete(submenu_id_url.format(target_menu_id=id_, target_submenu_id=difference))
+
+        for (menu_id, submenu_id, dish_id), dish in restaurant_menu.menu_id_submenu_id_dish_id_to_dish.items():
+            dishes_url = target_dishes.format(target_menu_id=menu_id, target_submenu_id=submenu_id)
+            dish_id_url = dishes_url + target_dish_id.format(target_dish_id=dish_id)
+            await self.update_or_post_entity(dishes_url, dish_id_url, dish)
+            menu_id_submenu_id_to_dish_ids_from_excel[(menu_id, submenu_id)].add(dish_id)
+
+        for id_ in menu_id_submenu_id_to_dish_ids_from_db:
+            diff = menu_id_submenu_id_to_dish_ids_from_db[id_] - menu_id_submenu_id_to_dish_ids_from_excel[id_]
+            if diff:
+                menu_id, submenu_id = id_
+                dish_id_url = target_dishes + target_dish_id
+                for difference in diff:
+                    await self.delete(
+                        dish_id_url.format(
+                            target_menu_id=menu_id,
+                            target_submenu_id=submenu_id,
+                            target_dish_id=difference
+                        )
+                    )
 
     async def post_entity(self, restaurant_menu: RestaurantMenu) -> None:
-        for menu in restaurant_menu.menu.values():
+        for menu in restaurant_menu.menu_id_to_menu.values():
             await self.post(settings.url.target_menus, menu.model_dump_json())
-        submenu_id_to_menu_id = {}
-        for submenu in restaurant_menu.submenu.values():
-            menu_id = str(submenu.menu_id)
+
+        for (menu_id, _), submenu in restaurant_menu.menu_id_submenu_id_to_submenu.items():
+            await self.post(settings.url.target_submenus.format(target_menu_id=menu_id), submenu.model_dump_json())
+
+        for (menu_id, submenu_id, _), dish in restaurant_menu.menu_id_submenu_id_dish_id_to_dish.items():
             await self.post(
-                settings.url.target_submenus.format(target_menu_id=menu_id),
-                submenu.model_dump_json(),
-            )
-            submenu_id_to_menu_id[submenu.id] = menu_id
-        for dish in restaurant_menu.dish.values():
-            submenu_id = str(dish.submenu_id)
-            menu_id = submenu_id_to_menu_id[submenu_id]
-            await self.post(
-                settings.url.target_dishes.format(
-                    target_menu_id=menu_id,
-                    target_submenu_id=submenu_id,
-                ),
-                dish.model_dump_json()
+                settings.url.target_dishes.format(target_menu_id=menu_id, target_submenu_id=submenu_id),
+                dish.model_dump_json(),
             )
 
     async def get_entity_ids(self, url: str) -> list[str]:
         return [entity['id'] for entity in await self.get(url)]
 
-    async def update_entity(self,
-                            schema_type: type[BaseSchema],
-                            url: str,
-                            id_to_entity_from_excel: dict[UUID, EntityFromExcel]) -> None:
-        answer = await self.get(url)
-        schema_answer = schema_type(**answer)
-        entity_from_excel = id_to_entity_from_excel[schema_answer.id]
-        fields = entity_from_excel.model_fields_set
-        for field in fields:
-            if getattr(entity_from_excel, field) != getattr(schema_answer, field):
-                await self.put(url, entity_from_excel.model_dump_json())
+    async def update_or_post_entity(self, post_url: str, target_url: str, entity_from_excel: EntityFromExcel) -> None:
+        model_dump_json = entity_from_excel.model_dump_json()
+        column_to_value = json.loads(model_dump_json)
+        try:
+            answer = await self.get(target_url)
+        except ValueError:
+            return await self.post(post_url, model_dump_json)
+
+        columns = column_to_value.keys()
+        if (discount := column_to_value.get('discount')) is not None:
+            column_to_value['price'] = str(
+                (entity_from_excel.price * Decimal(1 - discount / 100)).quantize(Decimal('1.00'))
+            )
+
+        for column in columns:
+            if column_to_value[column] != answer[column] and column_to_value[column] is not None:
+                await self.patch(target_url, model_dump_json)
                 break
-
-    async def update_entities(self,
-                              ids_from_db: set[str],
-                              schema_type: type[BaseSchema],
-                              url: str,
-                              id_to_entity_from_excel: dict[UUID, EntityFromExcel]) -> None:
-
-        for entity_id in ids_from_db:
-            try:
-                await self.update_entity(schema_type, url.format(entity_id), id_to_entity_from_excel)
-            except ValueError:
-                await self.post(url, id_to_entity_from_excel)
-
-    async def delete_difference_ids(self, difference_ids: set[str], url: str) -> None:
-        for id_ in difference_ids:
-            await self.delete(url.format(id_))
-
-    async def post_difference_ids(self,
-                                  difference_ids: set[str],
-                                  url: str,
-                                  id_to_entity_from_excel: dict[UUID, EntityFromExcel]) -> None:
-        for id_ in difference_ids:
-            await self.post(url, id_to_entity_from_excel[UUID(id_)].model_dump_json())
-
-
-
 
     @staticmethod
     async def _generate_hash(file: IO) -> str:
@@ -162,7 +175,7 @@ class HttpClientAdminRestaurant(AbstractHttpClient):
 if __name__ == '__main__':
     async def main():
         parser = ParserXlsxService()
-        await parser.load_sheet('../admin/Menu_2.xlsx')
+        await parser.load_sheet(settings.file_path)
         restaurant_menu = parser.get_restaurant_menu()
         client = HttpClientAdminRestaurant()
         await client.load_restaurant_menu_in_db(restaurant_menu)

@@ -15,9 +15,12 @@ class AbstractHttpClient(ABC):
         pass
 
     @abstractmethod
-    async def post(self, url: str, data: dict[str, Any]) -> Any:
+    async def post(self, url: str, json_data: str) -> Any:
         pass
 
     @abstractmethod
-    async def put(self, url: str, data: dict[str, Any]) -> Any:
+    async def patch(self, url: str, json_data: str) -> Any:
+        pass
+
+    async def delete(self, url: str) -> Any:
         pass

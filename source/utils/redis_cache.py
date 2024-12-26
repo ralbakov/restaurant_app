@@ -21,3 +21,7 @@ class RedisCache:
     @classmethod
     async def hdel(cls, name: str, *keys: str) -> None:
         await cls.redis_connection.hdel(name,*keys)
+
+    @classmethod
+    async def get_keys(cls, pattern: str) -> list[str]:
+        return await cls.redis_connection.keys(pattern)

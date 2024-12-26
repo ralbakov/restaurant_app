@@ -44,8 +44,7 @@ class Settings:
     db: DbSettings = DbSettings()
     redis_cache: RedisSettings = RedisSettings()
     url: UrlSettings = UrlSettings()
-    file_path: str = BASE_DIR / 'source/admin/Menu_2.xlsx'
+    file_path: str = BASE_DIR / 'source/admin/Menu_2_копия.xlsx'
 
 
 settings = Settings()
-print(settings.file_path)

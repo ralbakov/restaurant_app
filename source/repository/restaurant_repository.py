@@ -36,7 +36,6 @@ class RestaurantRepository:
             return (await session.scalars(select_entity)).all()
 
     async def update_entity(self, entity_type: type[Base], entity_id: str, **kwargs: Any) -> Base | None:
-        entity = entity_type(**kwargs)
         # statement = insert(entity_type).values(**entity.as_dict).on_conflict_do_update
         async with self._session as session:
             entity = await session.get(entity_type, entity_id)

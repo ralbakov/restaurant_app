@@ -12,9 +12,9 @@ from database.schemas import BaseSchema, MenuCreation, SubmenuCreation, DishCrea
 
 @dataclass
 class RestaurantMenu:
-    menu: dict[uuid.UUID, MenuCreation] = field(default_factory=dict)
-    submenu: dict[uuid.UUID, SubmenuCreation] = field(default_factory=dict)
-    dish: dict[uuid.UUID, DishCreation] = field(default_factory=dict)
+    menu_id_to_menu: dict[str, MenuCreation] = field(default_factory=dict)
+    menu_id_submenu_id_to_submenu: dict[tuple[str, ...], SubmenuCreation] = field(default_factory=dict)
+    menu_id_submenu_id_dish_id_to_dish: dict[tuple[str, ...], DishCreation] = field(default_factory=dict)
 
 
 class ColumnMenu(IntEnum):
@@ -72,15 +72,16 @@ class ParserXlsxService:
         menu_id, submenu_id = None, None
         for row in rows:
             if menu := self.construct_entity(MenuCreation, row, ColumnMenu):
-                menu_id = menu.id
-                restaurant_menu.menu[menu_id] = menu
+                menu_id = str(menu.id)
+                restaurant_menu.menu_id_to_menu[menu_id] = menu
                 row = next(rows)
-            if submenu := self.construct_entity(SubmenuCreation, row, ColumnSubmenu, menu_id):
-                submenu_id = submenu.id
-                restaurant_menu.submenu[menu_id] = submenu
+            if menu_id and (submenu := self.construct_entity(SubmenuCreation, row, ColumnSubmenu, menu_id)):
+                submenu_id = str(submenu.id)
+                restaurant_menu.menu_id_submenu_id_to_submenu[(menu_id, submenu_id)] = submenu
                 row = next(rows)
-            if dish := self.construct_entity(DishCreation, row, ColumnDish, submenu_id):
-                restaurant_menu.dish[menu_id] = dish
+            if submenu_id and (dish := self.construct_entity(DishCreation, row, ColumnDish, submenu_id)):
+                restaurant_menu.menu_id_submenu_id_dish_id_to_dish[(menu_id, submenu_id, str(dish.id))] = dish
+
         self.book.save(self.path)
         self.book.close()
         self.book = None
@@ -100,6 +101,9 @@ if __name__ == '__main__':
         parser = ParserXlsxService()
         await parser.load_sheet('../admin/Menu_2.xlsx')
         restaurant_menu = parser.get_restaurant_menu()
-        print(restaurant_menu)
-
+        for menu_id, submenu_id in restaurant_menu.menu_id_submenu_id_to_submenu:
+            print(menu_id, submenu_id)
+        print()
+        for menu_id, submenu_id, _ in restaurant_menu.menu_id_submenu_id_dish_id_to_dish:
+            print(menu_id, submenu_id)
     asyncio.run(main())
