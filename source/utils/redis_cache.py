@@ -9,6 +9,7 @@ class RedisCache:
     @classmethod
     async def hset(cls, name: str, key: str, value: bytes) -> None:
         await cls.redis_connection.hset(name, key=key, value=value)
+        await cls.redis_connection.hexpire(name, settings.redis_cache.ttl)
 
     @classmethod
     async def hget(cls, name: str, key: str) -> bytes:

@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -25,7 +26,7 @@ class RedisSettings:
     host: str = os.environ['REDIS_HOST']
     port: str = os.environ['REDIS_PORT']
     url: str = f'redis://{host}:{port}'
-    exp_second_set: int = 600
+    ttl: int = timedelta(minutes=15).seconds
 
 @dataclass
 class UrlSettings:
@@ -39,12 +40,18 @@ class UrlSettings:
     target_dishes: str = f'{target_submenus}{target_submenu_id}/dishes'
     target_dish_id: str = '/{target_dish_id}'
 
+class CelerySettings:
+    RABBITMQ_DEFAULT_USER: str = os.environ['RABBITMQ_DEFAULT_USER']
+    RABBITMQ_DEFAULT_PASS: str = os.environ['RABBITMQ_DEFAULT_PASS']
+    RABBITMQ_DEFAULT_PORT: int = os.environ['RABBITMQ_DEFAULT_PORT']
+    RABBITMQ_HOST: str = os.environ['RABBITMQ_HOST']
+    broker_url = f'amqp://{RABBITMQ_DEFAULT_USER}:{RABBITMQ_DEFAULT_PASS}@{RABBITMQ_HOST}:{RABBITMQ_DEFAULT_PORT}'
 
 class Settings:
     db: DbSettings = DbSettings()
     redis_cache: RedisSettings = RedisSettings()
     url: UrlSettings = UrlSettings()
+    celery: CelerySettings = CelerySettings()
     file_path: str = BASE_DIR / 'source/admin/Menu_2.xlsx'
-
 
 settings = Settings()

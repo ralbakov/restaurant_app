@@ -157,18 +157,3 @@ class HttpClientAdminRestaurant(AbstractHttpClient):
                         target_submenu_id=menu_id_submenu_id[1],
                         target_dish_id=dish_id,
                     ))
-
-
-if __name__ == '__main__':
-    parser = ParserXlsxService()
-    client = HttpClientAdminRestaurant()
-    async def main(parser: ParserXlsxService, client: HttpClientAdminRestaurant) -> None:
-        while True:
-            if await parser.check_hash_file(settings.file_path):
-                await parser.load_sheet(settings.file_path)
-                restaurant_menu = parser.get_restaurant_menu()
-                await client.load_restaurant_menu_in_db(restaurant_menu)
-            else:
-                await asyncio.sleep(15)
-
-    asyncio.run(main(parser, client))
