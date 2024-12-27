@@ -8,11 +8,11 @@ class BaseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     title: str
-    description: str | None
+    description: str
 
 
 class Identification(BaseModel):
-    id: Optional[UUID4] = None
+    id: Optional[UUID4 | str] = None
 
 
 class Menu(BaseSchema, Identification):

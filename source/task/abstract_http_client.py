@@ -7,7 +7,7 @@ class AbstractHttpClient(ABC):
     @property
     @asynccontextmanager
     @abstractmethod
-    async def get_client(self):
+    async def client(self):
         pass
 
     @abstractmethod

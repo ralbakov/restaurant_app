@@ -21,6 +21,7 @@ async def get_session() -> AsyncSession:
             yield session
         except DBAPIError:
             await session.rollback()
+            raise
         finally:
             await session.close()
 

@@ -1,4 +1,4 @@
-import asyncio
+import hashlib
 import uuid
 from dataclasses import dataclass, field
 from enum import IntEnum
@@ -42,11 +42,26 @@ class ParserXlsxService:
         self.sheet:  Worksheet | None = None
         self.book: Workbook | None = None
         self.path: str | None = None
+        self.hash_file: str | None = None
 
     async def load_sheet(self, path: str) -> None:
         self.path = path
         self.book = load_workbook(filename=path)
         self.sheet = self.book.active
+
+    @staticmethod
+    async def generate_hash(file_path: str, mode='rb') -> str:
+        hash_ = hashlib.sha256()
+        with open(file_path, mode) as file:
+            hash_.update(file.read())
+        return hash_.hexdigest()
+
+    async def check_hash_file(self, file_path: str, mode='rb') -> bool:
+        hash_ = await self.generate_hash(file_path, mode)
+        if self.hash_file is None or self.hash_file != hash_:
+            self.hash_file = hash_
+            return True
+        return False
 
     def construct_entity(self,
                          entity_type: type[BaseSchema],
@@ -61,6 +76,7 @@ class ParserXlsxService:
         if not self._check_uuid_4(values[0]):
             values[0] = uuid.uuid4()
             cells[0].value = str(values[0])
+            self.book.save(self.path)
         if entity_id is not None:
             values.append(entity_id)
         keys = entity_type.model_fields.keys()
@@ -81,11 +97,6 @@ class ParserXlsxService:
                 row = next(rows)
             if submenu_id and (dish := self.construct_entity(DishCreation, row, ColumnDish, submenu_id)):
                 restaurant_menu.menu_id_submenu_id_dish_id_to_dish[(menu_id, submenu_id, str(dish.id))] = dish
-
-        self.book.save(self.path)
-        self.book.close()
-        self.book = None
-        self.sheet = None
         return restaurant_menu
 
     @staticmethod
@@ -95,15 +106,3 @@ class ParserXlsxService:
             return True
         except ValueError:
             return False
-
-if __name__ == '__main__':
-    async def main():
-        parser = ParserXlsxService()
-        await parser.load_sheet('../admin/Menu_2.xlsx')
-        restaurant_menu = parser.get_restaurant_menu()
-        for menu_id, submenu_id in restaurant_menu.menu_id_submenu_id_to_submenu:
-            print(menu_id, submenu_id)
-        print()
-        for menu_id, submenu_id, _ in restaurant_menu.menu_id_submenu_id_dish_id_to_dish:
-            print(menu_id, submenu_id)
-    asyncio.run(main())
