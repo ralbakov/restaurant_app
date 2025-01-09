@@ -1,5 +1,3 @@
-import asyncio
-import io
 import json
 from collections import defaultdict
 from contextlib import asynccontextmanager
@@ -8,20 +6,18 @@ from typing import Any, TypeVar
 
 from httpx import AsyncClient
 
-from abstract_http_client import AbstractHttpClient
+from task.abstract_http_client import AbstractHttpClient
 from core.config import settings
-from database.schemas import Menu, Submenu, Dish
-from parser_xlsx_service import RestaurantMenu, ParserXlsxService
+from database.schemas import MenuCreation, SubmenuCreation, DishCreation
+from task.parser_xlsx_service import RestaurantMenu
 
 
-EntityFromExcel = TypeVar("EntityFromExcel", Menu, Submenu, Dish)
+EntityFromExcel = TypeVar("EntityFromExcel", MenuCreation, SubmenuCreation, DishCreation)
 
 
 class HttpClientAdminRestaurant(AbstractHttpClient):
     def __init__(self):
         self.base_url: str = f'http://{settings.url.host}:{settings.url.port}'
-        self.hash_file: str | None = None
-        self.file: io.FileIO | None = None
 
     @property
     @asynccontextmanager

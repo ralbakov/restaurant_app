@@ -6,8 +6,9 @@ from enum import IntEnum
 from openpyxl import load_workbook
 from openpyxl.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
+from pydantic import BaseModel
 
-from database.schemas import BaseSchema, MenuCreation, SubmenuCreation, DishCreation
+from database.schemas import MenuCreation, SubmenuCreation, DishCreation
 
 
 @dataclass
@@ -64,10 +65,10 @@ class ParserXlsxService:
         return False
 
     def construct_entity(self,
-                         entity_type: type[BaseSchema],
+                         entity_type: type[BaseModel],
                          row: int,
                          column_type: type[IntEnum],
-                         entity_id: uuid.UUID = None) :
+                         entity_id: uuid.UUID = None) -> BaseModel | None:
         cells = [self.sheet.cell(row=row, column=column) for column in column_type]
         values = [cell.value for cell in cells]
         if not all(values[:-1]):
@@ -77,12 +78,13 @@ class ParserXlsxService:
             values[0] = uuid.uuid4()
             cells[0].value = str(values[0])
             self.book.save(self.path)
+            self.hash_file = self.generate_hash(self.path)
         if entity_id is not None:
             values.append(entity_id)
         keys = entity_type.model_fields.keys()
         return entity_type(**dict(zip(keys, values)))
 
-    def get_restaurant_menu(self) -> RestaurantMenu | None:
+    def get_restaurant_menu(self) -> RestaurantMenu:
         restaurant_menu = RestaurantMenu()
         rows = iter(range(1, self.sheet.max_row + 1))
         menu_id, submenu_id = None, None
@@ -97,6 +99,8 @@ class ParserXlsxService:
                 row = next(rows)
             if submenu_id and (dish := self.construct_entity(DishCreation, row, ColumnDish, submenu_id)):
                 restaurant_menu.menu_id_submenu_id_dish_id_to_dish[(menu_id, submenu_id, str(dish.id))] = dish
+        self.sheet = None
+        self.book = None
         return restaurant_menu
 
     @staticmethod

@@ -8,11 +8,12 @@ from database.session_manager import init_models, close_engine
 from router.dish_router import dish_router
 from router.menu_router import menu_router
 from router.submenu_router import submenu_router
+from task.task import create_task_update_menu
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_models()
+    create_task_update_menu.delay()
     yield
     await close_engine()
 

@@ -1,0 +1,107 @@
+services:
+
+  db:
+    image: postgres:15.1-alpine
+    restart: always
+    container_name: db
+    env_file:
+      - .env
+    networks:
+      - restaurant
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 30s
+      retries: 5
+
+  redis:
+    image: redis:latest
+    restart: always
+    container_name: redis
+    env_file:
+      - .env
+    networks:
+      - restaurant
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    container_name: backend
+    env_file:
+      - .env
+    networks:
+      - restaurant
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./source/admin:/source/admin
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbit:
+        condition: service_healthy
+    command: /bin/sh -c "python -m alembic -c ../alembic.ini upgrade head \
+                         && python -m uvicorn main:app --host 0.0.0.0 --port 8080"
+
+  rabbit:
+    image: rabbitmq:latest
+    hostname: rabbitmq
+    restart: always
+    container_name: rabbit
+    env_file:
+      - .env
+    networks:
+      - restaurant
+    ports:
+      - "5672:5672"
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 30s
+      retries: 5
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    container_name: worker
+    env_file:
+      - .env
+    networks:
+      - restaurant
+    volumes:
+      - ./source/admin:/source/admin
+    depends_on:
+      - backend
+    command: /bin/sh -c "celery --app=task.task.celery worker -l INFO"
+
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flower
+    restart: always
+    networks:
+      - restaurant
+    ports:
+      - "5555:5555"
+    env_file:
+      - .env
+    depends_on:
+      - worker
+    command: /bin/sh -c "celery --broker=${CELERY_BROKER_URL} flower --app=task.task.celery --port=5555"
+
+
+networks:
+  restaurant:
+    name: restaurant
