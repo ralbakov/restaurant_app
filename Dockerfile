@@ -1,4 +1,4 @@
-FROM python:3.12-alpine
+FROM python:alpine
 
 LABEL authors="albakov.ruslan@gmail.com"
 

@@ -21,12 +21,14 @@ class DbSettings:
     POSTGRES_PORT: str = os.environ['POSTGRES_PORT']
     url: str = f'postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}'
 
+
 @dataclass
 class RedisSettings:
     REDIS_HOST: str = os.environ['REDIS_HOST']
     REDIS_PORT: str = os.environ['REDIS_PORT']
     url: str = f'redis://{REDIS_HOST}:{REDIS_PORT}'
     ttl: int = timedelta(minutes=15).seconds
+
 
 @dataclass
 class UrlSettings:
@@ -40,6 +42,7 @@ class UrlSettings:
     target_dishes: str = f'{target_submenus}{target_submenu_id}/dishes'
     target_dish_id: str = '/{target_dish_id}'
 
+
 class CelerySettings:
     RABBITMQ_DEFAULT_USER: str = os.environ['RABBITMQ_DEFAULT_USER']
     RABBITMQ_DEFAULT_PASS: str = os.environ['RABBITMQ_DEFAULT_PASS']
@@ -48,11 +51,13 @@ class CelerySettings:
     RABBITMQ_DEFAULT_VHOST: str = os.environ['RABBITMQ_DEFAULT_VHOST']
     broker_url = f'amqp://{RABBITMQ_DEFAULT_USER}:{RABBITMQ_DEFAULT_PASS}@{RABBITMQ_HOST}:{RABBITMQ_DEFAULT_PORT}/{RABBITMQ_DEFAULT_VHOST}'
 
+
 class Settings:
     db: DbSettings = DbSettings()
     redis_cache: RedisSettings = RedisSettings()
     url: UrlSettings = UrlSettings()
     celery: CelerySettings = CelerySettings()
     file_path: str = BASE_DIR / 'source/admin/Menu_2.xlsx'
+
 
 settings = Settings()

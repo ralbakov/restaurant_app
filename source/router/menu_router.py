@@ -29,7 +29,6 @@ async def read_all(task: BackgroundTasks, service: RestaurantService):
     target = TargetCode.get_target(tag_menu)
     return await service.read_all(target, task)
 
-
 @menu_router.get(path.target_menu_id, name='Get one menu', status_code=status.HTTP_200_OK, response_model=Menu)
 async def read_one(target_menu_id: str, task: BackgroundTasks, service: RestaurantService):
     target = TargetCode.get_target(tag_menu)
@@ -38,7 +37,6 @@ async def read_one(target_menu_id: str, task: BackgroundTasks, service: Restaura
         return await service.read_one(target, task)
     except ValueError as error:
         raise HTTPException(status_code=404, detail=error.args[0])
-
 
 @menu_router.patch(path.target_menu_id, name='Update menu', status_code=status.HTTP_200_OK, response_model=Menu)
 async def update(target_menu_id: str,
@@ -51,7 +49,6 @@ async def update(target_menu_id: str,
         return await service.update(schema, target, task)
     except Exception as error:
         raise HTTPException(status_code=400, detail=error.args[0])
-
 
 @menu_router.delete(path.target_menu_id, name='Delete menu', status_code=status.HTTP_200_OK)
 async def delete(target_menu_id: str, task: BackgroundTasks, service: RestaurantService):

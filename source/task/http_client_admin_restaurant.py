@@ -6,9 +6,9 @@ from typing import Any, TypeVar
 
 from httpx import AsyncClient
 
-from task.abstract_http_client import AbstractHttpClient
 from core.config import settings
 from database.schemas import MenuCreation, SubmenuCreation, DishCreation
+from task.abstract_http_client import AbstractHttpClient
 from task.parser_xlsx_service import RestaurantMenu
 
 

@@ -6,9 +6,9 @@ from typing import Annotated
 from fastapi import BackgroundTasks, Depends
 
 from database.models import Menu, Submenu, Dish, Base
+from database.redis_cache import RedisCache
 from database.schemas import BaseSchema
 from repository.restaurant_repository import RestaurantRepository
-from utils.redis_cache import RedisCache
 
 
 class Entity(Enum):

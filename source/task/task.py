@@ -1,33 +1,43 @@
 import asyncio
+from datetime import timedelta
 
 from celery import Celery
 
-from task.parser_xlsx_service import ParserXlsxService
-from task.http_client_admin_restaurant import HttpClientAdminRestaurant
 from core.config import settings
+from task.http_client_admin_restaurant import HttpClientAdminRestaurant
+from task.parser_xlsx_service import ParserXlsxService
 
 
-celery = Celery('update_menu', broker=settings.celery.broker_url)
+celery = Celery(broker=settings.celery.broker_url)
+
+celery.conf.beat_schedule = {
+    'load_menu': {
+        'task': 'load_menu',
+        'schedule': timedelta(seconds=15),
+    },
+}
+
 parser = ParserXlsxService()
+
 client = HttpClientAdminRestaurant()
 
-
-async def update_menu() -> None:
+async def _load_menu() -> str:
     if not await parser.check_hash_file(settings.file_path):
-        return
-    await parser.load_sheet(settings.file_path)
-    menu = parser.get_restaurant_menu()
-    return await client.load_restaurant_menu_in_db(menu)
+        return 'Menu has not been changed'
+    parser.load_sheet(settings.file_path)
+    menu = await parser.get_restaurant_menu()
+    await client.load_restaurant_menu_in_db(menu)
+    return 'Menu update successfully'
 
 
 @celery.task(
+    name='load_menu',
+    bind=True,
     default_retry_delay=15,
     max_retries=None,
 )
-def create_task_update_menu():
+def load_menu(self):
     try:
-        asyncio.run(update_menu())
+        return asyncio.run(_load_menu())
     except Exception as error:
-        print(repr(error))
-    finally:
-        create_task_update_menu.retry()
+        self.retry(exc=error)

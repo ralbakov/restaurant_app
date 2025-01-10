@@ -45,7 +45,7 @@ class ParserXlsxService:
         self.path: str | None = None
         self.hash_file: str | None = None
 
-    async def load_sheet(self, path: str) -> None:
+    def load_sheet(self, path: str) -> None:
         self.path = path
         self.book = load_workbook(filename=path)
         self.sheet = self.book.active
@@ -64,7 +64,7 @@ class ParserXlsxService:
             return True
         return False
 
-    def construct_entity(self,
+    async def construct_entity(self,
                          entity_type: type[BaseModel],
                          row: int,
                          column_type: type[IntEnum],
@@ -78,26 +78,26 @@ class ParserXlsxService:
             values[0] = uuid.uuid4()
             cells[0].value = str(values[0])
             self.book.save(self.path)
-            self.hash_file = self.generate_hash(self.path)
+            self.hash_file = await self.generate_hash(self.path)
         if entity_id is not None:
             values.append(entity_id)
         keys = entity_type.model_fields.keys()
         return entity_type(**dict(zip(keys, values)))
 
-    def get_restaurant_menu(self) -> RestaurantMenu:
+    async def get_restaurant_menu(self) -> RestaurantMenu:
         restaurant_menu = RestaurantMenu()
         rows = iter(range(1, self.sheet.max_row + 1))
         menu_id, submenu_id = None, None
         for row in rows:
-            if menu := self.construct_entity(MenuCreation, row, ColumnMenu):
+            if menu := await self.construct_entity(MenuCreation, row, ColumnMenu):
                 menu_id = str(menu.id)
                 restaurant_menu.menu_id_to_menu[menu_id] = menu
                 row = next(rows)
-            if menu_id and (submenu := self.construct_entity(SubmenuCreation, row, ColumnSubmenu, menu_id)):
+            if menu_id and (submenu := await self.construct_entity(SubmenuCreation, row, ColumnSubmenu, menu_id)):
                 submenu_id = str(submenu.id)
                 restaurant_menu.menu_id_submenu_id_to_submenu[(menu_id, submenu_id)] = submenu
                 row = next(rows)
-            if submenu_id and (dish := self.construct_entity(DishCreation, row, ColumnDish, submenu_id)):
+            if submenu_id and (dish := await self.construct_entity(DishCreation, row, ColumnDish, submenu_id)):
                 restaurant_menu.menu_id_submenu_id_dish_id_to_dish[(menu_id, submenu_id, str(dish.id))] = dish
         self.sheet = None
         self.book = None

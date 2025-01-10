@@ -15,6 +15,7 @@ RestaurantService = Annotated[RestaurantService, Depends(RestaurantService)]
 
 submenu_router = APIRouter(prefix=path.target_submenus, tags=[tag_submenu])
 
+
 @submenu_router.post('', name='Create submenu', status_code=status.HTTP_201_CREATED, response_model=Submenu)
 async def create(target_menu_id: str,
                  schema: SubmenuCreation,
