@@ -8,7 +8,7 @@ from task.http_client_admin_restaurant import HttpClientAdminRestaurant
 from task.parser_xlsx_service import ParserXlsxService
 
 
-celery = Celery(broker=settings.celery.broker_url)
+celery = Celery(main='restaurant', broker=settings.celery.broker_url)
 
 celery.conf.beat_schedule = {
     'load_menu': {
@@ -35,6 +35,7 @@ async def _load_menu() -> str:
     bind=True,
     default_retry_delay=15,
     max_retries=None,
+    ignore_result=True,
 )
 def load_menu(self):
     try:

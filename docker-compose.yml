@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: backend
+    image: restaurant_app
     restart: always
     container_name: backend
     env_file:
@@ -73,7 +73,7 @@ services:
 
 
   worker:
-    image: backend
+    image: restaurant_app
     restart: always
     container_name: worker
     env_file:
@@ -84,11 +84,11 @@ services:
       - ./source/admin:/source/admin
     depends_on:
       - backend
-    command: /bin/sh -c "celery --app=task.task.celery worker -l INFO"
+    command: /bin/sh -c "celery -A task worker -l INFO"
 
 
   flower:
-    image: backend
+    image: restaurant_app
     container_name: flower
     restart: always
     networks:
@@ -99,17 +99,17 @@ services:
       - .env
     depends_on:
       - worker
-    command: /bin/sh -c "celery --broker=${CELERY_BROKER_URL} flower --app=task.task.celery --port=5555"
+    command: /bin/sh -c "celery -A task flower --port=5555"
 
 
   beat:
-    image: backend
+    image: restaurant_app
     container_name: beat
     networks:
       - restaurant
     depends_on:
-      - worker
-    command: /bin/sh -c "celery --app=task.task.celery beat -l INFO"
+      - backend
+    command: /bin/sh -c "celery -A task beat -l INFO"
 
 networks:
   restaurant:
