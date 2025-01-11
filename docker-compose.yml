@@ -103,7 +103,7 @@ services:
 
 
   beat:
-    image: ${DOCKER_REGISTRY-}backend
+    image: backend
     container_name: beat
     networks:
       - restaurant
